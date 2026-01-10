@@ -1,8 +1,18 @@
+<script setup lang="ts">
+// Mengakses state yang sama dengan key 'counter'
+const counter = useState('counter', () => 0)
+</script>
+
 <template>
   <div class="main-container">
     <h1>ℹ️ Tentang Timekeeper</h1>
     <p>Ini adalah halaman kedua yang dibuat untuk mendemonstrasikan routing di Nuxt 4.</p>
     
+    <div class="shared-state-info">
+      <p>Global Counter dari halaman utama: <strong>{{ counter }}</strong></p>
+      <p v-if="counter > 10" style="color: #d32f2f">Wah, angkanya sudah lebih dari 10! 🔥</p>
+    </div>
+
     <div class="navigation">
       <NuxtLink to="/">⬅️ Kembali ke Beranda</NuxtLink>
     </div>

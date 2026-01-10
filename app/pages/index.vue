@@ -12,6 +12,12 @@ interface ApiResponse {
 
 // Gunakan interface tersebut di useFetch
 const { data: apiResponse, refresh } = await useFetch<ApiResponse>('/api/stats')
+
+// Global state menggunakan useState
+// 'counter' adalah key unik agar bisa diakses di halaman lain
+const counter = useState('counter', () => 0)
+const increment = () => counter.value++
+const decrement = () => counter.value--
 </script>
 
 <template>
@@ -41,6 +47,17 @@ const { data: apiResponse, refresh } = await useFetch<ApiResponse>('/api/stats')
       
       <!-- Bungkus refresh dengan () => refresh() agar tidak error event -->
       <button @click="() => refresh()" class="refresh-btn">🔄 Refresh Data</button>
+    </div>
+
+    <!-- Bagian Eksperimen State Management -->
+    <div class="state-box">
+      <h3>🧩 Global State (useState):</h3>
+      <p>Nilai Counter: <span class="counter-value">{{ counter }}</span></p>
+      <div class="counter-btns">
+        <button @click="decrement" class="btn btn-red">➖ Kurang</button>
+        <button @click="increment" class="btn btn-green">➕ Tambah</button>
+      </div>
+      <p class="small-text">Coba ubah angka di atas, lalu pindah ke halaman "Tentang".</p>
     </div>
 
     <div class="navigation">
@@ -106,5 +123,39 @@ a:hover {
   background: #ffebee;
   padding: 10px;
   border-radius: 4px;
+}
+
+/* Style tambahan untuk State Mgmt */
+.state-box {
+  margin-top: 20px;
+  padding: 15px;
+  background: #fff3e0;
+  border-radius: 8px;
+  border: 1px dashed #ff9800;
+}
+.counter-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #ff9800;
+}
+.counter-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 10px 0;
+}
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+.btn-red { background: #e53935; }
+.btn-green { background: #43a047; }
+.small-text {
+  font-size: 0.8rem;
+  color: #666;
 }
 </style>
