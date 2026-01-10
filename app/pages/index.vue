@@ -1,15 +1,46 @@
+<script setup lang="ts">
+// Kita buat Interface agar TypeScript tahu bentuk data dari API
+interface ApiResponse {
+  status: string
+  data: {
+    uptime: string
+    usersActive: number
+    serverTime: string
+    version: string
+  }
+}
+
+// Gunakan interface tersebut di useFetch
+const { data: apiResponse, refresh } = await useFetch<ApiResponse>('/api/stats')
+</script>
+
 <template>
   <div class="main-container">
     <h1>🚀 Selamat Datang di Timekeeper</h1>
     <p>Ini adalah halaman pertama kamu menggunakan struktur <strong>Nuxt 4</strong>.</p>
     
     <div class="info-box">
-      <h3>Statistik Saat Ini:</h3>
-      <div class="stats-grid">
-        <StatusCard title="Project" value="Timekeeper" color="#1976d2" />
-        <StatusCard title="Versi" value="Nuxt 4.2" color="#42b883" />
-        <StatusCard title="Status" value="Belajar" color="#fbc02d" />
+      <h3>Statistik dari API Server:</h3>
+      
+      <!-- Pengecekan ekstra: apiResponse?.data -->
+      <div v-if="apiResponse?.data" class="stats-grid">
+        <StatusCard title="Uptime" :value="apiResponse.data.uptime" color="#1976d2" />
+        <StatusCard title="User Aktif" :value="apiResponse.data.usersActive" color="#42b883" />
+        <StatusCard title="Waktu Server" :value="apiResponse.data.serverTime" color="#fbc02d" />
       </div>
+
+      <!-- State Loading: Jika apiResponse masih null -->
+      <div v-else-if="apiResponse === null" class="loading-state">
+        ⏳ Sedang memuat data server...
+      </div>
+
+      <!-- State Error: Jika apiResponse ada tapi data-nya kosong -->
+      <div v-else class="error-state">
+        ⚠️ Format data dari server tidak sesuai.
+      </div>
+      
+      <!-- Bungkus refresh dengan () => refresh() agar tidak error event -->
+      <button @click="() => refresh()" class="refresh-btn">🔄 Refresh Data</button>
     </div>
 
     <div class="navigation">
@@ -46,5 +77,34 @@ a {
 }
 a:hover {
   text-decoration: underline;
+}
+.refresh-btn {
+  margin-top: 15px;
+  padding: 8px 16px;
+  background: #42b883;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.refresh-btn:hover {
+  background: #33a06f;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.loading-state {
+  color: #666;
+  font-style: italic;
+  padding: 10px 0;
+}
+.error-state {
+  color: #d32f2f;
+  background: #ffebee;
+  padding: 10px;
+  border-radius: 4px;
 }
 </style>
