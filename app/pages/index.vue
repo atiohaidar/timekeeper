@@ -4,11 +4,12 @@
     <p>Ini adalah halaman pertama kamu menggunakan struktur <strong>Nuxt 4</strong>.</p>
     
     <div class="info-box">
-      <h3>Apa yang baru?</h3>
-      <ul>
-        <li>File ini ada di <code>app/pages/index.vue</code></li>
-        <li>Halaman diatur otomatis oleh folder <code>app/pages/</code></li>
-      </ul>
+      <h3>Statistik Saat Ini:</h3>
+      <div class="stats-grid">
+        <StatusCard title="Project" value="Timekeeper" color="#1976d2" />
+        <StatusCard title="Versi" value="Nuxt 4.2" color="#42b883" />
+        <StatusCard title="Status" value="Belajar" color="#fbc02d" />
+      </div>
     </div>
 
     <div class="navigation">
