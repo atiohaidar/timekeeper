@@ -13,7 +13,8 @@
     </div>
 
     <div class="navigation">
-      <NuxtLink to="/about">Ke Halaman Tentang ➡️</NuxtLink>
+      <NuxtLink to="/about">Ke Halaman Tentang ➡️</NuxtLink> <br>
+      <NuxtLink to="/custom-page" style="color: #607d8b">Coba Halaman dengan Layout Berbeda 🎨</NuxtLink>
     </div>
   </div>
 </template>
