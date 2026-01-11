@@ -319,9 +319,9 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
 <template>
   <div ref="timelineContainer" class="h-full overflow-y-auto bg-notebook-paper">
     <!-- Header -->
-    <div class="sticky top-0 z-40 bg-notebook-paper border-b-2 border-notebook-lines px-4 py-3 flex items-center justify-between">
+    <div class="sticky top-0 z-40 bg-notebook-paper border-b-2 border-notebook-lines px-4 py-3 hidden lg:flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <h2 class="font-handwritten-alt text-xl md:text-2xl font-bold text-notebook-ink">
+        <h2 class="font-handwritten-alt text-2xl font-bold text-notebook-ink">
           📋 Timeline Acara
         </h2>
         
@@ -510,5 +510,36 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
         />
       </div>
     </div>
+    <!-- Mobile Edit Mode FAB -->
+    <div class="fixed bottom-6 right-6 z-50 lg:hidden flex flex-col items-end gap-3">
+      <!-- Add Button (Only visible in Edit Mode) -->
+      <Transition name="scale">
+        <button 
+          v-if="isEditMode"
+          class="w-12 h-12 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center border-2 border-white font-handwritten text-xl hover:scale-110 transition-transform btn-sketchy-fab"
+          @click="emit('add', selectedAgendaId || undefined)"
+          title="Tambah Agenda"
+        >
+          ➕
+        </button>
+      </Transition>
+
+      <!-- Toggle Button -->
+      <button 
+        class="w-14 h-14 rounded-full shadow-xl flex items-center justify-center border-2 transition-all transform active:scale-95 btn-sketchy-fab backdrop-blur-sm"
+        :class="isEditMode ? 'bg-white/90 text-red-500 border-red-500' : 'bg-white/90 text-notebook-ink border-notebook-ink'"
+        @click="isEditMode = !isEditMode"
+        :title="isEditMode ? 'Keluar Mode Edit' : 'Masuk Mode Edit'"
+      >
+        <span class="text-2xl">{{ isEditMode ? '✖' : '✏️' }}</span>
+      </button>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.btn-sketchy-fab {
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+  box-shadow: 2px 5px 15px rgba(0,0,0,0.2);
+}
+</style>

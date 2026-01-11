@@ -52,13 +52,13 @@ function formatTimestamp(date: Date): string {
   <!-- Toggle button -->
   <button
     :class="[
-      'fixed right-0 top-1/2 -translate-y-1/2 z-40',
+      'fixed right-0 top-1/2 -translate-y-1/2 z-50',
       'bg-notebook-paper border-2 border-r-0 border-notebook-margin',
       'px-2 py-4 font-handwritten text-sm',
       'hover:bg-notebook-paper-dark transition-colors',
       'rounded-l-lg'
     ]"
-    @click="emit('toggle')"
+    @click="toggle"
   >
     <span class="writing-mode-vertical">
       {{ isVisible ? '📕 Tutup' : '📖 Log' }}
