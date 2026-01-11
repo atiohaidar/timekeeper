@@ -32,8 +32,11 @@ const {
   sortedAgendas,
   estimatedStartTimes,
   undoStack,
-  redoStack
+  redoStack,
+  currentTime: storeCurrentTime
 } = storeToRefs(store)
+
+const currentTime = computed(() => storeCurrentTime.value)
 
 const {
   selectAgenda,
@@ -145,8 +148,6 @@ const pixelsPerMinute = computed(() => {
 })
 
 // Current time for "Now Indicator"
-const currentTime = ref(new Date())
-let clockInterval: ReturnType<typeof setInterval> | null = null
 const timelineContainer = ref<HTMLElement | null>(null)
 
 function scrollToNow(smooth = true) {
@@ -188,9 +189,6 @@ watch(selectedAgendaId, (newId) => {
 })
 
 onMounted(() => {
-  clockInterval = setInterval(() => {
-    currentTime.value = new Date()
-  }, 1000)
 
   // Initial scroll after a short delay to ensure rendering is complete
   setTimeout(() => {
@@ -201,7 +199,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (clockInterval) clearInterval(clockInterval)
   window.removeEventListener('keydown', handleKeydown)
 })
 
@@ -322,7 +319,7 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
 <template>
   <div ref="timelineContainer" class="h-full overflow-y-auto bg-notebook-paper">
     <!-- Header -->
-    <div class="sticky top-0 z-20 bg-notebook-paper border-b-2 border-notebook-lines px-4 py-3 flex items-center justify-between">
+    <div class="sticky top-0 z-40 bg-notebook-paper border-b-2 border-notebook-lines px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <h2 class="font-handwritten-alt text-xl md:text-2xl font-bold text-notebook-ink">
           📋 Timeline Acara
@@ -460,7 +457,7 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
         <!-- Now Indicator -->
         <div
           v-if="isNowVisible"
-          class="absolute left-0 right-0 z-30 pointer-events-none transition-all duration-1000 ease-linear"
+          class="absolute left-0 right-0 z-30 pointer-events-none transition-all duration-1000 ease-linear -translate-y-1/2"
           :style="{ top: `${nowIndicatorTop}px` }"
         >
           <div class="flex items-center">

@@ -26,7 +26,12 @@ const {
   elapsedSeconds,
   selectedAgenda: agenda,
   runningAgenda,
+  currentTime: storeCurrentTime,
+  isSimulated,
+  isPaused
 } = storeToRefs(store)
+
+const currentTime = computed(() => storeCurrentTime.value)
 
 const {
   getEstimatedStartTime,
@@ -42,7 +47,13 @@ const {
   updateReminder,
   deleteReminder,
   downloadReport,
-  exportCurrentAgendas
+  exportCurrentAgendas,
+  undo,
+  redo,
+  resetData,
+  toggleSimulation,
+  togglePause,
+  setSimulationTime
 } = store
 
 const toast = useToast()
@@ -76,6 +87,7 @@ function openEditModal(id: string) {
 // Event Name Editing
 const isEditingEventName = ref(false)
 const eventNameInput = ref<HTMLInputElement | null>(null)
+const showHiddenControls = ref(false)
 
 function startEditingEventName() {
   isEditingEventName.value = true
@@ -97,9 +109,8 @@ onMounted(() => {
   })
 })
 
-// Real-time clock
-const currentTime = ref(new Date())
-let clockInterval: ReturnType<typeof setInterval> | null = null
+// Real-time clock logic is now handled by the store
+// We just watch storeCurrentTime
 
 const startHour = computed(() => {
   if (agendas.value.length === 0) return 8
@@ -122,21 +133,12 @@ const pixelsPerMinute = computed(() => {
   const scaled = Math.round(60 / Math.max(1, minDuration))
   return Math.max(2, Math.min(12, scaled))
 })
-// ... (rest of the file remains similar, but need to implement the template change next)
 
 onMounted(() => {
-  clockInterval = setInterval(() => {
-    currentTime.value = new Date()
-  }, 1000)
-  
   // Simulate initial data loading
   setTimeout(() => {
     isLoading.value = false
   }, 500)
-})
-
-onUnmounted(() => {
-  if (clockInterval) clearInterval(clockInterval)
 })
 
 // Format clock display
@@ -186,6 +188,18 @@ function handleAdjustTime(id: string, minutes: number) {
   const success = adjustTime(id, minutes)
   if (success) {
     toast.info(`Durasi disesuaikan ${minutes > 0 ? '+' : ''}${minutes} menit`)
+  }
+}
+
+function handleSimulationTimeInput(e: Event) {
+  const target = e.target as HTMLInputElement
+  if (!target.value) return
+
+  const [h, m] = target.value.split(':').map(Number)
+  if (h !== undefined && m !== undefined) {
+    const newTime = new Date(currentTime.value)
+    newTime.setHours(h, m)
+    setSimulationTime(newTime)
   }
 }
 
@@ -276,11 +290,53 @@ useHead({
           </div>
         </div>
 
-        <!-- Right: Clock -->
-        <div class="flex-shrink-0 text-center md:text-right w-full md:w-auto">
-          <p class="font-typewriter text-3xl md:text-4xl font-bold text-notebook-ink tracking-widest">
+        <!-- Right: Clock & Simulation Controls -->
+        <div class="flex-shrink-0 text-center md:text-right w-full md:w-auto flex flex-col items-end">
+          <p 
+            class="font-typewriter text-3xl md:text-4xl font-bold text-notebook-ink tracking-widest cursor-pointer hover:opacity-75 transition-opacity"
+            @click="showHiddenControls = !showHiddenControls"
+            title="Klik untuk opsi developer"
+          >
             {{ formattedTime }}
           </p>
+          
+          <!-- Simulation Controls (Small) -->
+          <div class="mt-1 flex items-center gap-2 justify-end" :class="{ 'invisible': !isSimulated && !showHiddenControls }">
+             <button 
+               v-if="!isSimulated && showHiddenControls"
+               @click="toggleSimulation"
+               class="text-[10px] text-gray-400 hover:text-notebook-ink border border-transparent hover:border-notebook-ink/30 px-1 rounded transition-colors"
+               title="Aktifkan Mode Simulasi Waktu"
+             >
+               ⏱️ Test Waktu
+             </button>
+             <div v-else-if="isSimulated" class="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded px-1.5 py-0.5">
+                <span class="text-[10px] font-bold text-yellow-700 mr-1">SIMULASI</span>
+                
+                <button 
+                  @click="togglePause"
+                  class="text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-yellow-200 text-notebook-ink"
+                  :title="isPaused ? 'Resume' : 'Pause'"
+                >
+                  {{ isPaused ? '▶️' : '⏸️' }}
+                </button>
+                
+                <input 
+                  type="time" 
+                  :value="currentTime.toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})"
+                  @input="handleSimulationTimeInput"
+                  class="text-[10px] bg-white border border-yellow-300 rounded px-1 w-16 text-center font-mono focus:outline-none focus:ring-1 focus:ring-yellow-500"
+                />
+
+                <button 
+                   @click="toggleSimulation"
+                   class="text-[10px] text-red-500 hover:text-red-700 ml-1"
+                   title="Kembali ke Waktu Nyata"
+                >
+                   ✖
+                </button>
+             </div>
+          </div>
         </div>
       </div>
 

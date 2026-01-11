@@ -86,6 +86,12 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
     const isChangeLogVisible = ref(false)
     const isEditMode = ref(false)
 
+    // Time & Simulation
+    const currentTime = ref(new Date())
+    const isSimulated = ref(false)
+    const isPaused = ref(false)
+    let simulationInterval: ReturnType<typeof setInterval> | null = null
+
     // Persistent storage keys
     let timerInterval: ReturnType<typeof setInterval> | null = null
     const elapsedSeconds = ref(0)
@@ -339,6 +345,60 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         setTimeout(() => {
             loadFromStorage()
         }, 0)
+
+        // Central Clock Loop
+        setInterval(() => {
+            if (isSimulated.value) {
+                if (!isPaused.value) {
+                    // Advance time by 1 second in simulation mode
+                    currentTime.value = new Date(currentTime.value.getTime() + 1000)
+                }
+            } else {
+                // Sync with real time
+                currentTime.value = new Date()
+            }
+
+            // If an agenda is running, validation logic (elapsedSeconds) is handled separately
+            // But we might want to sync runningAgenda elapsed time with this central clock in the future.
+            // For now, let's keep the existing localized timer interval for runningAgenda 
+            // BUT, if we are in simulation mode, the runningAgenda timer interval (setInterval 1000ms) 
+            // might drift if we speed up simulation. 
+            // Ideally, elapsedSeconds should be calculated diff: (currentTime - actualStartTime).
+
+            if (runningAgenda.value && runningAgenda.value.actualStartTime) {
+                // Recalculate elapsed seconds based on the store's currentTime
+                const start = runningAgenda.value.actualStartTime
+                const diffMs = currentTime.value.getTime() - start.getTime()
+                elapsedSeconds.value = Math.floor(diffMs / 1000)
+            }
+        }, 1000)
+    }
+
+    // ===== SIMULATION ACTIONS =====
+    function toggleSimulation() {
+        isSimulated.value = !isSimulated.value
+        // When entering simulation, start from 'now' or keep current time? 
+        // Let's keep current time static initially if we pause?
+        // Actually, let's just detach from real clock.
+        if (!isSimulated.value) {
+            isPaused.value = false
+        }
+    }
+
+    function setSimulationTime(date: Date) {
+        isSimulated.value = true
+        currentTime.value = date
+        // Adjust running agenda start time if necessary to preserve elapsed duration?
+        // Or should we shift everything?
+        // User request is simple: "dummy code for time".
+        // Let's just set the clock. 
+        // NOTE: If an agenda is running, shifting current time abruptly might cause negative elapsed time 
+        // or huge elapsed time if we don't adjust actualStartTime. 
+        // For simple testing, we just jump.
+    }
+
+    function togglePause() {
+        isPaused.value = !isPaused.value
     }
 
     // ===== CHANGE LOG HELPERS =====
@@ -373,9 +433,8 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         elapsedSeconds.value = 0
 
         if (timerInterval) clearInterval(timerInterval)
-        timerInterval = setInterval(() => {
-            elapsedSeconds.value++
-        }, 1000)
+        // We rely on the central clock loop to update elapsedSeconds now
+        // But we still need to clear the old interval if it exists from older logic
 
         addChangeLog('start', `Dimulai pada ${formatTime(new Date())}`, agenda)
     }
@@ -610,6 +669,9 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         changeLog,
         isChangeLogVisible,
         isEditMode,
+        currentTime,
+        isSimulated,
+        isPaused,
         elapsedSeconds,
         selectedAgenda,
         runningAgenda,
@@ -637,6 +699,9 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         exportCurrentAgendas,
         addAgenda,
         updateAgenda,
-        deleteAgenda
+        deleteAgenda,
+        toggleSimulation,
+        setSimulationTime,
+        togglePause
     }
 })
