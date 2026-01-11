@@ -4,10 +4,12 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
   compatibilityDate: '2025-07-15',
+  ssr: false, // Client-side only rendering for GitHub Pages
   devtools: { enabled: true },
 
   // Google Fonts for handwritten aesthetic
   app: {
+    baseURL: '/timekeeper/',
     head: {
       link: [
         {
