@@ -1,3 +1,10 @@
+<script setup>
+// Set global title
+useHead({
+  title: 'Timekeeper App'
+})
+</script>
+
 <template>
   <div>
     <NuxtRouteAnnouncer />
