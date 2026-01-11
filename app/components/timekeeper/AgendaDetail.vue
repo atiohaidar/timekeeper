@@ -12,7 +12,7 @@
   - Notes textarea styled like notebook paper
 -->
 <script setup lang="ts">
-import type { Agenda } from '~/stores/timekeeper'
+import type { Agenda } from '~/types'
 import { storeToRefs } from 'pinia'
 import { useTimekeeperStore } from '~/stores/timekeeper'
 import { useToast } from '~/composables/useToast'
@@ -33,10 +33,7 @@ const {
   stopAgenda,
   cancelAgenda,
   adjustTime,
-  updateNotes,
-  addReminder,
-  updateReminder,
-  deleteReminder
+  updateNotes
 } = store
 
 const estimatedStartTime = computed(() => {
@@ -55,34 +52,10 @@ const emit = defineEmits<{
   deleteReminder: [agendaId: string, reminderId: string]
 }>()
 
-// Computed: formatted elapsed time
-const elapsedFormatted = computed(() => {
-  const minutes = Math.floor(elapsedSeconds.value / 60)
-  const seconds = elapsedSeconds.value % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-})
+// Timer logic moved to AgendaTimer.vue
 
-// Computed: progress percentage
-const progressPercent = computed(() => {
-  if (!agenda.value) return 0
-  const totalSeconds = agenda.value.plannedDuration * 60
-  const percent = (elapsedSeconds.value / totalSeconds) * 100
-  return Math.min(percent, 100)
-})
+const { formatTime } = useTimeFormatter()
 
-// Computed: time status (on time, overtime)
-const timeStatus = computed(() => {
-  if (!agenda.value) return 'normal'
-  const totalSeconds = agenda.value.plannedDuration * 60
-  if (elapsedSeconds.value > totalSeconds) return 'overtime'
-  if (elapsedSeconds.value > totalSeconds * 0.8) return 'warning'
-  return 'normal'
-})
-
-// Format planned start time and end time
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-}
 
 // Computed: original planned end time
 const plannedEndTime = computed(() => {
@@ -133,66 +106,8 @@ function handleNotesInput() {
   }, 500)
 }
 
-// ===== REMINDER MANAGEMENT =====
-const isAddingReminder = ref(false)
-const editingReminderId = ref<string | null>(null)
-const reminderForm = ref({
-  offsetMinutes: 0,
-  division: '',
-  message: '',
-  icon: ''
-})
+// Reminder logic moved to AgendaReminders.vue
 
-function startAddReminder() {
-  isAddingReminder.value = true
-  editingReminderId.value = null
-  reminderForm.value = { offsetMinutes: 0, division: '', message: '', icon: '' }
-}
-
-function startEditReminder(reminderId: string) {
-  if (!agenda.value) return
-  const reminder = agenda.value.reminders.find(r => r.id === reminderId)
-  if (!reminder) return
-  
-  editingReminderId.value = reminderId
-  isAddingReminder.value = false
-  reminderForm.value = {
-    offsetMinutes: reminder.offsetMinutes,
-    division: reminder.division,
-    message: reminder.message,
-    icon: reminder.icon || ''
-  }
-}
-
-function saveReminder() {
-  if (!agenda.value) return
-  
-  if (editingReminderId.value) {
-    // Update existing
-    updateReminder(agenda.value.id, editingReminderId.value, reminderForm.value)
-    toast.success('Reminder berhasil diperbarui')
-    editingReminderId.value = null
-  } else {
-    // Add new
-    addReminder(agenda.value.id, reminderForm.value)
-    toast.success('Reminder baru ditambahkan')
-    isAddingReminder.value = false
-  }
-  
-  reminderForm.value = { offsetMinutes: 0, division: '', message: '', icon: '' }
-}
-
-function cancelReminderForm() {
-  isAddingReminder.value = false
-  editingReminderId.value = null
-  reminderForm.value = { offsetMinutes: 0, division: '', message: '', icon: '' }
-}
-
-function handleDeleteReminder(reminderId: string) {
-  if (!agenda.value) return
-  deleteReminder(agenda.value.id, reminderId)
-  toast.success('Reminder dihapus')
-}
 
 // ===== START CONFIRMATION =====
 const showStartConfirmation = ref(false)
@@ -281,11 +196,24 @@ function incrementAdjust() {
 }
 
 function decrementAdjust() {
+  if (!agenda.value) return
+  // Safety check: don't allow delta that makes duration < 1
+  if (agenda.value.plannedDuration + (customAdjustMinutes.value - 1) < 1) {
+    toast.warning('Durasi tidak bisa kurang dari 1 menit')
+    return
+  }
   customAdjustMinutes.value--
 }
 
 function applyCustomAdjust() {
   if (!agenda.value || customAdjustMinutes.value === 0) return
+  
+  // Final safety check before emit
+  if (agenda.value.plannedDuration + customAdjustMinutes.value < 1) {
+    toast.warning('Hasil akhir durasi minimal 1 menit')
+    return
+  }
+
   emit('adjust', agenda.value.id, customAdjustMinutes.value)
   customAdjustMinutes.value = 0
 }
@@ -384,47 +312,12 @@ function applyCustomAdjust() {
         </div>
 
         <!-- Actual running time -->
-        <div 
-          :class="[
-            'border-sketchy-light p-4',
-            timeStatus === 'overtime' ? 'bg-red-100' :
-            timeStatus === 'warning' ? 'bg-yellow-100' :
-            'bg-notebook-paper-dark'
-          ]"
-        >
-          <p class="font-handwritten text-sm text-notebook-ink-light mb-1">⏲️ Waktu Berjalan</p>
-          <p 
-            :class="[
-              'font-typewriter text-3xl md:text-4xl font-bold tracking-widest',
-              timeStatus === 'overtime' ? 'text-pen-red' :
-              timeStatus === 'warning' ? 'text-yellow-700' :
-              'text-notebook-ink',
-              agenda.status === 'running' && 'animate-pulse-soft'
-            ]"
-          >
-            {{ 
-              agenda.status === 'running' ? elapsedFormatted : 
-              agenda.status === 'done' && agenda.actualDurationSeconds !== undefined ? 
-              `${String(Math.floor(agenda.actualDurationSeconds / 60)).padStart(2, '0')}:${String(agenda.actualDurationSeconds % 60).padStart(2, '0')}` : 
-              '--:--' 
-            }}
-          </p>
-        </div>
+        <TimekeeperAgendaTimer 
+          :agenda="agenda"
+          :elapsed-seconds="elapsedSeconds"
+        />
       </div>
 
-      <!-- Progress bar -->
-      <div v-if="agenda.status === 'running'" class="mb-6">
-        <p class="font-handwritten text-sm text-notebook-ink-light mb-2">Progress</p>
-        <div class="progress-bar-hand">
-          <div 
-            class="progress-bar-hand-fill" 
-            :style="{ width: `${progressPercent}%` }"
-          ></div>
-        </div>
-        <p class="font-handwritten text-sm text-notebook-ink-light mt-1 text-right">
-          {{ Math.round(progressPercent) }}%
-        </p>
-      </div>
 
       <!-- Primary Control Zone -->
       <div v-if="agenda.status === 'waiting' || agenda.status === 'running'" class="flex justify-center mb-8">
@@ -506,125 +399,11 @@ function applyCustomAdjust() {
         </div>
       </div>
 
-      <!-- Reminder Management Section -->
-      <div class="mb-6 border-t-2 border-dashed border-notebook-lines pt-6">
-        <div class="flex items-center justify-between mb-3">
-          <p class="font-handwritten text-lg text-notebook-ink flex items-center gap-2">
-            📌 Reminder & Alerts
-          </p>
-          <button
-            v-if="!isAddingReminder && !editingReminderId"
-            class="btn-sketchy text-xs py-1 px-2"
-            @click="startAddReminder"
-          >
-            + Tambah
-          </button>
-        </div>
+      <TimekeeperAgendaReminders 
+        :agenda-id="agenda.id"
+        :reminders="agenda.reminders"
+      />
 
-        <!-- Reminder List -->
-        <div v-if="agenda.reminders.length > 0" class="space-y-2 mb-3">
-          <div
-            v-for="reminder in agenda.reminders"
-            :key="reminder.id"
-            class="border-sketchy-light p-3 bg-notebook-paper-dark flex items-start gap-3"
-            :class="editingReminderId === reminder.id && 'ring-2 ring-notebook-ink/20'"
-          >
-            <div class="text-2xl flex-shrink-0">{{ reminder.icon || '📍' }}</div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="font-typewriter text-xs font-bold text-notebook-ink/60">
-                  {{ reminder.offsetMinutes >= 0 ? `+${reminder.offsetMinutes}m` : `${reminder.offsetMinutes}m` }}
-                </span>
-                <span class="text-xs px-1.5 py-0.5 bg-notebook-ink/10 rounded font-handwritten">
-                  {{ reminder.division }}
-                </span>
-              </div>
-              <p class="font-handwritten text-sm text-notebook-ink">{{ reminder.message }}</p>
-            </div>
-            <div class="flex gap-1">
-              <button
-                class="text-xs text-notebook-ink/40 hover:text-notebook-ink"
-                @click="startEditReminder(reminder.id)"
-              >
-                ✏️
-              </button>
-              <button
-                class="text-xs text-pen-red/40 hover:text-pen-red"
-                @click="handleDeleteReminder(reminder.id)"
-              >
-                🗑️
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Add/Edit Reminder Form -->
-        <div v-if="isAddingReminder || editingReminderId" class="border-sketchy p-3 bg-yellow-50/30 space-y-3">
-          <p class="font-handwritten text-sm font-bold text-notebook-ink">
-            {{ editingReminderId ? '✏️ Edit Reminder' : '➕ Tambah Reminder Baru' }}
-          </p>
-          
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="font-handwritten text-xs text-notebook-ink-light">
-                Waktu (menit) <span class="text-pen-red">*</span>
-              </label>
-              <input
-                v-model.number="reminderForm.offsetMinutes"
-                type="number"
-                class="w-full px-2 py-1 border border-notebook-lines rounded font-typewriter text-sm"
-                placeholder="-5 atau +10"
-                required
-              />
-            </div>
-            <div>
-              <label class="font-handwritten text-xs text-notebook-ink-light">
-                Divisi <span class="text-pen-red">*</span>
-              </label>
-              <input
-                v-model="reminderForm.division"
-                type="text"
-                class="w-full px-2 py-1 border border-notebook-lines rounded font-handwritten text-sm"
-                placeholder="Sound, MC, dll"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label class="font-handwritten text-xs text-notebook-ink-light">
-              Pesan <span class="text-pen-red">*</span>
-            </label>
-            <input
-              v-model="reminderForm.message"
-              type="text"
-              class="w-full px-2 py-1 border border-notebook-lines rounded font-handwritten text-sm"
-              placeholder="Siapkan mic..."
-              required
-            />
-          </div>
-
-          <div>
-            <label class="font-handwritten text-xs text-notebook-ink-light">Icon (emoji)</label>
-            <input
-              v-model="reminderForm.icon"
-              type="text"
-              class="w-full px-2 py-1 border border-notebook-lines rounded font-handwritten text-sm"
-              placeholder="🔊 📽️ 🎤"
-              maxlength="2"
-            />
-          </div>
-
-          <div class="flex gap-2">
-            <button class="btn-sketchy btn-sketchy-primary text-xs py-1 px-3 flex-1" @click="saveReminder">
-              {{ editingReminderId ? 'Simpan' : 'Tambah' }}
-            </button>
-            <button class="btn-sketchy text-xs py-1 px-3" @click="cancelReminderForm">
-              Batal
-            </button>
-          </div>
-        </div>
-      </div>
 
       <!-- Notes section -->
       <div class="flex-1 flex flex-col min-h-[200px]">

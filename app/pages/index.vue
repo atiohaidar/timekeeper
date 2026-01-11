@@ -37,13 +37,30 @@ const {
   toggleChangeLog,
   addReminder,
   updateReminder,
-  deleteReminder
+  deleteReminder,
+  downloadReport,
+  exportCurrentAgendas
 } = store
 
 const toast = useToast()
 
 // Loading state
 const isLoading = ref(true)
+
+// Modals
+// Modals
+const isImportVisible = ref(false)
+const isMenuOpen = ref(false)
+const menuRef = ref<HTMLElement | null>(null)
+
+// Click outside to close menu
+onMounted(() => {
+  document.addEventListener('click', (e) => {
+    if (menuRef.value && !menuRef.value.contains(e.target as Node)) {
+      isMenuOpen.value = false
+    }
+  })
+})
 
 // Real-time clock
 const currentTime = ref(new Date())
@@ -108,8 +125,10 @@ function handleCancelAgenda(id: string) {
 }
 
 function handleAdjustTime(id: string, minutes: number) {
-  adjustTime(id, minutes)
-  toast.info(`Durasi disesuaikan ${minutes > 0 ? '+' : ''}${minutes} menit`)
+  const success = adjustTime(id, minutes)
+  if (success) {
+    toast.info(`Durasi disesuaikan ${minutes > 0 ? '+' : ''}${minutes} menit`)
+  }
 }
 
 // Page meta
@@ -136,13 +155,54 @@ useHead({
           </p>
         </div>
 
-        <!-- Center: Live indicator -->
-        <div class="flex-shrink-0 my-2 md:my-0 md:mx-4">
+        <!-- Center Tools & Indicator -->
+        <div class="flex-shrink-0 my-2 md:my-0 flex items-center gap-4">
           <div v-if="runningAgenda" class="live-indicator">
             LIVE EVENT MODE
           </div>
           <div v-else class="font-handwritten text-notebook-ink-light">
             ⏸️ Standby
+          </div>
+
+          <!-- Tools Dropdown -->
+          <div class="relative" ref="menuRef">
+            <button 
+              @click="isMenuOpen = !isMenuOpen"
+              class="text-sm bg-notebook-paper border border-notebook-lines px-3 py-1 rounded shadow-sm hover:shadow-md hover:bg-yellow-50 transition-all font-handwritten text-notebook-ink flex items-center gap-2"
+            >
+              📁 Menu Data
+            </button>
+
+            <!-- Dropdown Menu -->
+            <Transition name="scale">
+              <div 
+                v-if="isMenuOpen"
+                class="absolute right-0 top-full mt-2 w-48 bg-notebook-paper border-2 border-notebook-lines rounded-lg shadow-xl z-50 overflow-hidden"
+              >
+                <div class="p-2 space-y-1">
+                  <button 
+                      @click="() => { isImportVisible = true; isMenuOpen = false }"
+                      class="w-full text-left px-3 py-2 text-sm font-handwritten hover:bg-blue-50 hover:text-blue-600 rounded flex items-center gap-2 transition-colors"
+                  >
+                      📥 Import dari Excel
+                  </button>
+                  <button 
+                      @click="() => { exportCurrentAgendas(); isMenuOpen = false }"
+                      class="w-full text-left px-3 py-2 text-sm font-handwritten hover:bg-yellow-50 hover:text-yellow-600 rounded flex items-center gap-2 transition-colors"
+                  >
+                      📁 Simpan ke Excel
+                  </button>
+                  <button 
+                    @click="() => { downloadReport(); isMenuOpen = false }"
+                    class="w-full text-left px-3 py-2 text-sm font-handwritten hover:bg-green-50 hover:text-green-600 rounded flex items-center gap-2 transition-colors"
+                  >
+                      📊 Laporan (CSV)
+                  </button>
+                </div>
+                <!-- Decorative bottom edge -->
+                <div class="h-1 bg-notebook-lines/20 border-t border-dashed border-notebook-lines"></div>
+              </div>
+            </Transition>
           </div>
         </div>
 
@@ -187,5 +247,24 @@ useHead({
 
     <!-- Change Log Panel -->
     <TimekeeperChangeLog />
+
+    <!-- Import Modal -->
+    <TimekeeperImportAgendasModal 
+      :is-visible="isImportVisible"
+      @close="isImportVisible = false"
+    />
   </div>
 </template>
+
+<style scoped>
+.scale-enter-active,
+.scale-leave-active {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.scale-enter-from,
+.scale-leave-to {
+  transform: scale(0.95) translateY(-10px);
+  opacity: 0;
+}
+</style>

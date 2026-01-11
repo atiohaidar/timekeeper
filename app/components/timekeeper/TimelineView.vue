@@ -9,7 +9,7 @@
   - "Now Indicator" red line
 -->
 <script setup lang="ts">
-import type { Agenda, Reminder } from '~/stores/timekeeper'
+import type { Agenda, Reminder } from '~/types'
 import { storeToRefs } from 'pinia'
 import { useTimekeeperStore } from '~/stores/timekeeper'
 import { useToast } from '~/composables/useToast'
@@ -30,13 +30,46 @@ const {
   runningAgenda,
   sortedAgendas,
   estimatedStartTimes,
+  undoStack,
+  redoStack
 } = storeToRefs(store)
 
 const {
   selectAgenda,
   reorderAgendas,
-  adjustTime
+  adjustTime,
+  undo,
+  redo,
+  resetData
 } = store
+
+function handleKeydown(e: KeyboardEvent) {
+  // Ignore if input is focused
+  if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault()
+    if (e.shiftKey) {
+      if (redoStack.value.length > 0) {
+        redo()
+        toast.info('Redo')
+      }
+    } else {
+      if (undoStack.value.length > 0) {
+        undo()
+        toast.info('Undo')
+      }
+    }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+    e.preventDefault()
+    if (redoStack.value.length > 0) {
+      redo()
+      toast.info('Redo')
+    }
+  }
+}
+
 
 
 // Drag State
@@ -127,6 +160,31 @@ function scrollToNow(smooth = true) {
   })
 }
 
+function scrollToAgenda(id: string, smooth = true) {
+  if (!timelineContainer.value) return
+  
+  const agenda = agendas.value.find(a => a.id === id)
+  if (!agenda) return
+
+  const startTime = estimatedStartTimes.value.get(id) || agenda.plannedStartTime
+  const top = getTopPosition(startTime)
+  
+  const containerHeight = timelineContainer.value.clientHeight
+  const targetScroll = top - (containerHeight / 3) // Focus slightly above center
+  
+  timelineContainer.value.scrollTo({
+    top: Math.max(0, targetScroll),
+    behavior: smooth ? 'smooth' : 'auto'
+  })
+}
+
+// Watch for selection changes
+watch(selectedAgendaId, (newId) => {
+  if (newId) {
+    scrollToAgenda(newId)
+  }
+})
+
 onMounted(() => {
   clockInterval = setInterval(() => {
     currentTime.value = new Date()
@@ -136,11 +194,15 @@ onMounted(() => {
   setTimeout(() => {
     scrollToNow(false)
   }, 500)
+  
+  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (clockInterval) clearInterval(clockInterval)
+  window.removeEventListener('keydown', handleKeydown)
 })
+
 
 // Calculate top position for a given time
 function getTopPosition(date: Date): number {
@@ -275,16 +337,48 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
       </div>
       
       <!-- Edit Mode Toggle -->
-      <button 
-        class="btn-sketchy text-xs py-1 px-3 flex items-center gap-2"
-        :class="isEditMode ? 'bg-pen-red/10 text-pen-red border-pen-red shadow-none translate-y-0.5' : 'text-notebook-ink-light'"
-        @click="isEditMode = !isEditMode"
-      >
-        <span v-if="isEditMode">🔓 MODE EDIT AKTIF</span>
-        <span v-else>🔒 MODE VIEW</span>
-        <span class="text-lg">{{ isEditMode ? '✏️' : '👁️' }}</span>
-      </button>
+      <div class="flex items-center gap-2">
+         <!-- Undo/Redo Controls -->
+        <div class="flex items-center bg-notebook-paper-dark border border-notebook-lines rounded-lg px-2 py-1 mr-2" v-if="isEditMode">
+          <button 
+            class="p-1 hover:text-notebook-ink disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+            :disabled="undoStack.length === 0"
+            @click="undo"
+            title="Undo (Ctrl+Z)"
+          >
+            ↩️
+          </button>
+          <div class="w-px h-4 bg-notebook-lines mx-1"></div>
+          <button 
+            class="p-1 hover:text-notebook-ink disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+            :disabled="redoStack.length === 0"
+            @click="redo"
+            title="Redo (Ctrl+Y)"
+          >
+            ↪️
+          </button>
+           <div class="w-px h-4 bg-notebook-lines mx-1"></div>
+          <button 
+             class="p-1 hover:text-red-500 text-notebook-ink-light transition-colors"
+             @click="resetData"
+             title="Reset Data"
+          >
+            🗑️
+          </button>
+        </div>
+
+        <button 
+          class="btn-sketchy text-xs py-1 px-3 flex items-center gap-2"
+          :class="isEditMode ? 'bg-pen-red/10 text-pen-red border-pen-red shadow-none translate-y-0.5' : 'text-notebook-ink-light'"
+          @click="isEditMode = !isEditMode"
+        >
+          <span v-if="isEditMode">🔓 MODE EDIT AKTIF</span>
+          <span v-else>🔒 MODE VIEW</span>
+          <span class="text-lg">{{ isEditMode ? '✏️' : '👁️' }}</span>
+        </button>
+      </div>
     </div>
+
 
     <!-- Timeline Grid -->
     <div class="relative flex" :style="{ minHeight: `${timelineHeight}px` }">
@@ -327,7 +421,8 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
           :is-edit-mode="isEditMode"
           :class="[
             draggedId === agenda.id && 'opacity-40 grayscale',
-            dragOverId === agenda.id && draggedId !== agenda.id && 'ring-4 ring-notebook-ink/20 ring-offset-2'
+            dragOverId === agenda.id && draggedId !== agenda.id && 'ring-4 ring-notebook-ink/20 ring-offset-2',
+            'transition-all duration-300'
           ]"
           :top="getTopPosition(estimatedStartTimes.get(agenda.id) ?? agenda.plannedStartTime)"
           :height="getHeight(agenda.plannedDuration)"

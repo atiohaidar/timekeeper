@@ -11,7 +11,7 @@
   - Newest entries at top (reverse chronological)
 -->
 <script setup lang="ts">
-import type { ChangeLogEntry } from '~/stores/timekeeper'
+import type { ChangeLogEntry } from '~/types'
 import { storeToRefs } from 'pinia'
 import { useTimekeeperStore } from '~/stores/timekeeper'
 

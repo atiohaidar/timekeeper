@@ -7,7 +7,7 @@
   UX: Improves navigation and orientation in timeline
 -->
 <script setup lang="ts">
-import type { Agenda } from '~/stores/timekeeper'
+import type { Agenda } from '~/types'
 import { storeToRefs } from 'pinia'
 import { useTimekeeperStore } from '~/stores/timekeeper'
 

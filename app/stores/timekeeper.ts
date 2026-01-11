@@ -1,41 +1,10 @@
 import { defineStore } from 'pinia'
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
+
+import type { Agenda, AgendaStatus, ChangeLogEntry, Reminder } from '~/types'
 
 // ===== TYPES =====
-export type AgendaStatus = 'waiting' | 'running' | 'done' | 'cancelled'
-
-export interface Reminder {
-    id: string
-    offsetMinutes: number  // Relative: -5 = 5 min before start, +10 = 10 min after start
-    division: string       // e.g., "Sound", "Logistik", "Konsumsi", "MC"
-    message: string
-    icon?: string          // Emoji icon for the reminder
-}
-
-export interface Agenda {
-    id: string
-    title: string
-    pic: string                    // Person In Charge
-    plannedStartTime: Date
-    plannedDuration: number        // in minutes
-    actualStartTime: Date | null
-    actualEndTime: Date | null
-    actualDurationSeconds?: number // Store the exact timer value
-    status: AgendaStatus
-    description: string
-    notes: string
-    order: number
-    reminders: Reminder[]          // List of relative-time reminders
-}
-
-export interface ChangeLogEntry {
-    id: string
-    timestamp: Date
-    type: 'delay' | 'cancel' | 'swap' | 'adjust' | 'start' | 'done'
-    description: string
-    agendaId: string
-    agendaTitle: string
-}
+// imported from ~/types
 
 // ===== HELPER =====
 function generateId(): string {
@@ -120,6 +89,12 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
     let timerInterval: ReturnType<typeof setInterval> | null = null
     const elapsedSeconds = ref(0)
 
+    // Undo/Redo
+    const STORAGE_KEY = 'timekeeper-v1'
+    const undoStack = ref<string[]>([])
+    const redoStack = ref<string[]>([])
+    const isUndoing = ref(false)
+
     // ===== COMPUTED =====
     const selectedAgenda = computed(() => {
         if (!selectedAgendaId.value) return null
@@ -183,6 +158,188 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         return estimatedStartTimes.value.get(agendaId) ?? null
     }
 
+    // ===== PERSISTENCE & UNDO SYSTEM =====
+    function snapshot() {
+        if (isUndoing.value) return
+        undoStack.value.push(JSON.stringify(agendas.value))
+        if (undoStack.value.length > 50) undoStack.value.shift()
+        redoStack.value = []
+    }
+
+    function undo() {
+        const lastState = undoStack.value.pop()
+        if (!lastState) return
+
+        isUndoing.value = true
+        redoStack.value.push(JSON.stringify(agendas.value))
+
+        try {
+            agendas.value = JSON.parse(lastState, dateReviver)
+            recalculateStartTimes()
+        } finally {
+            isUndoing.value = false
+        }
+    }
+
+    function redo() {
+        const nextState = redoStack.value.pop()
+        if (!nextState) return
+
+        isUndoing.value = true
+        undoStack.value.push(JSON.stringify(agendas.value))
+
+        try {
+            agendas.value = JSON.parse(nextState, dateReviver)
+            recalculateStartTimes()
+        } finally {
+            isUndoing.value = false
+        }
+    }
+
+    function canUndo() {
+        return undoStack.value.length > 0
+    }
+
+    function canRedo() {
+        return redoStack.value.length > 0
+    }
+
+    function dateReviver(_key: string, value: any) {
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+            return new Date(value)
+        }
+        return value
+    }
+
+    function saveToStorage() {
+        if (import.meta.client) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(agendas.value))
+        }
+    }
+
+    function loadFromStorage() {
+        if (import.meta.client) {
+            const stored = localStorage.getItem(STORAGE_KEY)
+            if (stored) {
+                try {
+                    agendas.value = JSON.parse(stored, dateReviver)
+                    // If stored agendas are stale (e.g. from yesterday), we might want to shift them to today?
+                    // For now, we assume user manages dates.
+                    recalculateStartTimes()
+                } catch (e) {
+                    console.error('Failed to load state', e)
+                }
+            }
+        }
+    }
+
+    function resetData() {
+        if (confirm('Reset data ke default?')) {
+            if (import.meta.client) localStorage.removeItem(STORAGE_KEY)
+            agendas.value = createDummyAgendas()
+            undoStack.value = []
+            redoStack.value = []
+            elapsedSeconds.value = 0
+            selectedAgendaId.value = agendas.value[0]?.id ?? null
+        }
+    }
+
+    function importAgendas(newAgendas: Agenda[], replace: boolean) {
+        snapshot()
+
+        if (replace) {
+            agendas.value = newAgendas.map((a, i) => ({ ...a, order: i }))
+            selectedAgendaId.value = agendas.value[0]?.id ?? null
+        } else {
+            // Append
+            const lastOrder = Math.max(...agendas.value.map(a => a.order), -1)
+            const appended = newAgendas.map((a, i) => ({ ...a, order: lastOrder + 1 + i }))
+            agendas.value.push(...appended)
+        }
+
+        recalculateStartTimes()
+        saveToStorage()
+        addChangeLog('adjust', `Import ${newAgendas.length} agenda`, agendas.value[0] || newAgendas[0] || { id: 'unknown', title: 'Imported Data' } as Agenda)
+    }
+
+    function downloadReport() {
+        if (!import.meta.client) return
+
+        const headers = ['Judul', 'PIC', 'Status', 'Rencana Mulai', 'Rencana Durasi (m)', 'Aktual Mulai', 'Aktual Selesai', 'Aktual Durasi (m)', 'Catatan']
+        const csvContent = [
+            headers.join(','),
+            ...agendas.value.map(a => {
+                const actualDur = a.actualDurationSeconds ? (a.actualDurationSeconds / 60).toFixed(1) : ''
+                const row = [
+                    `"${a.title.replace(/"/g, '""')}"`,
+                    `"${a.pic.replace(/"/g, '""')}"`,
+                    a.status,
+                    formatTime(a.plannedStartTime),
+                    a.plannedDuration,
+                    a.actualStartTime ? formatTime(a.actualStartTime) : '-',
+                    a.actualEndTime ? formatTime(a.actualEndTime) : '-',
+                    actualDur,
+                    `"${a.notes.replace(/"/g, '""')}"`
+                ]
+                return row.join(',')
+            })
+        ].join('\n')
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        link.setAttribute('href', url)
+        link.setAttribute('download', `laporan-timekeeper-${new Date().toISOString().slice(0, 10)}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
+    function exportCurrentAgendas() {
+        if (!import.meta.client) return
+
+        // Exact 7-column format for re-importing
+        const headers = ['Judul Agenda', 'Durasi (menit)', 'PIC', 'Deskripsi', 'Rem-Waktu', 'Rem-Divisi', 'Rem-Pesan']
+
+        const rows = agendas.value.sort((a, b) => a.order - b.order).map(a => {
+            const rem = a.reminders[0] || { offsetMinutes: '', division: '', message: '' }
+            return [
+                `"${a.title.replace(/"/g, '""')}"`,
+                a.plannedDuration,
+                `"${a.pic.replace(/"/g, '""')}"`,
+                `"${a.description.replace(/"/g, '""')}"`,
+                rem.offsetMinutes,
+                `"${rem.division.replace(/"/g, '""')}"`,
+                `"${rem.message.replace(/"/g, '""')}"`
+            ].join(',')
+        })
+
+        const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\n') // Added BOM for Excel UTF-8
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        link.setAttribute('href', url)
+        link.setAttribute('download', `rundown-editable-${new Date().toISOString().slice(0, 10)}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
+
+    // Persist on change
+    watch(agendas, () => {
+        saveToStorage()
+    }, { deep: true })
+
+    // Init
+    if (import.meta.client) {
+        setTimeout(() => {
+            loadFromStorage()
+        }, 0)
+    }
+
     // ===== CHANGE LOG HELPERS =====
     function addChangeLog(type: ChangeLogEntry['type'], description: string, agenda: Agenda) {
         changeLog.value.unshift({
@@ -201,6 +358,7 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
     }
 
     function startAgenda(id: string) {
+        snapshot()
         const agenda = agendas.value.find(a => a.id === id)
         if (!agenda) return
 
@@ -222,6 +380,7 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
     }
 
     function stopAgenda(id: string, markDone: boolean = true) {
+        snapshot()
         const agenda = agendas.value.find(a => a.id === id)
         if (!agenda) return
 
@@ -237,22 +396,20 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
             agenda.status = 'done'
             addChangeLog('done', `Selesai pada ${formatTime(new Date())}`, agenda)
 
-            // Auto-select next agenda
             const sorted = sortedAgendas.value
             const currentIndex = sorted.findIndex(a => a.id === id)
             if (currentIndex !== -1 && currentIndex < sorted.length - 1) {
-                // Find next non-cancelled agenda
                 const nextAgenda = sorted.slice(currentIndex + 1).find(a => a.status !== 'cancelled')
                 if (nextAgenda) {
                     selectedAgendaId.value = nextAgenda.id
                 }
             }
         }
-
         elapsedSeconds.value = 0
     }
 
     function cancelAgenda(id: string) {
+        snapshot()
         const agenda = agendas.value.find(a => a.id === id)
         if (!agenda) return
 
@@ -265,30 +422,35 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         agenda.status = 'cancelled'
         addChangeLog('cancel', 'Dibatalkan', agenda)
 
-        // Auto-select next agenda
         const sorted = sortedAgendas.value
         const currentIndex = sorted.findIndex(a => a.id === id)
         if (currentIndex !== -1 && currentIndex < sorted.length - 1) {
-            // Find next waiting agenda
             const nextAgenda = sorted.slice(currentIndex + 1).find(a => a.status === 'waiting')
             if (nextAgenda) {
                 selectedAgendaId.value = nextAgenda.id
             }
         }
-
         recalculateStartTimes()
     }
 
     function adjustTime(id: string, minutes: number) {
+        snapshot()
         const agenda = agendas.value.find(a => a.id === id)
-        if (!agenda) return
+        if (!agenda) return false
+
+        if (minutes < 0 && agenda.plannedDuration + minutes < 1) {
+            const toast = useToast()
+            toast.warning('Durasi minimal adalah 1 menit')
+            return false
+        }
 
         agenda.plannedDuration += minutes
-        if (agenda.plannedDuration < 5) agenda.plannedDuration = 5
+        if (agenda.plannedDuration < 1) agenda.plannedDuration = 1
 
         const action = minutes > 0 ? `+${minutes}` : `${minutes}`
         addChangeLog('adjust', `Durasi diubah ${action} menit`, agenda)
         recalculateStartTimes()
+        return true
     }
 
     function updateNotes(id: string, notes: string) {
@@ -299,6 +461,7 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
     }
 
     function reorderAgendas(fromIndex: number, toIndex: number) {
+        snapshot()
         const sorted = sortedAgendas.value
         const [moved] = sorted.splice(fromIndex, 1)
         if (!moved) return
@@ -336,6 +499,7 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
     }
 
     function addReminder(agendaId: string, reminder: Omit<Reminder, 'id'>) {
+        snapshot()
         const agenda = agendas.value.find(a => a.id === agendaId)
         if (!agenda) return
 
@@ -348,6 +512,7 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
     }
 
     function updateReminder(agendaId: string, reminderId: string, updates: Partial<Omit<Reminder, 'id'>>) {
+        snapshot()
         const agenda = agendas.value.find(a => a.id === agendaId)
         if (!agenda) return
 
@@ -358,6 +523,7 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
     }
 
     function deleteReminder(agendaId: string, reminderId: string) {
+        snapshot()
         const agenda = agendas.value.find(a => a.id === agendaId)
         if (!agenda) return
 
@@ -378,6 +544,8 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         runningAgenda,
         sortedAgendas,
         estimatedStartTimes,
+        undoStack,
+        redoStack,
         getEstimatedStartTime,
         selectAgenda,
         startAgenda,
@@ -389,6 +557,12 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         toggleChangeLog,
         addReminder,
         updateReminder,
-        deleteReminder
+        deleteReminder,
+        undo,
+        redo,
+        resetData,
+        importAgendas,
+        downloadReport,
+        exportCurrentAgendas
     }
 })
