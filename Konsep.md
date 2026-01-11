@@ -51,6 +51,18 @@ const counter = useState('counter', () => 0)
 
 ---
 
-## 5. Tips Selanjutnya
-1. **Composables**: Jika logika `useState` mulai panjang, pindahkan ke folder `app/composables/` agar rapi.
-2. **Hydration**: Pastikan HTML yang dirender server sama dengan client untuk menghindari error `parentNode of null`.
+## 6. Composables (Folder `app/composables/`)
+Composables adalah tempat menaruh logika yang bisa dipakai berulang kali. Nuxt otomatis melakukan *auto-import* untuk semua file di folder ini.
+
+### Perbedaan `ref` vs `useState` di dalam Composable:
+- **`useState('key', ...)`**: Menciptakan state yang **Shared (Global)**. Jika diubah di satu tempat, semua tempat yang memanggilnya akan ikut ter-update.
+- **`ref()`**: Menciptakan state yang **Private (Local)** per pemanggilan fungsi. Setiap komponen yang memanggilnya akan mendapatkan "salinan" baru.
+
+**Contoh:**
+```typescript
+export const useApp = () => {
+  const global = useState('key', () => 0) // Data barengan
+  const lokal = ref(0)                   // Data masing-masing
+  return { global, lokal }
+}
+```
