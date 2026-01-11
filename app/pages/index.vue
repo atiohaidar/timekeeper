@@ -10,19 +10,32 @@ interface ApiResponse {
   }
 }
 
-// Gunakan interface tersebut di useFetch
-const { data: apiResponse, refresh } = await useFetch<ApiResponse>('/api/stats')
-
-// Global state menggunakan useState
+// Global state menggunakan useState (State Management Dasar)
 // 'counter' adalah key unik agar bisa diakses di halaman lain
 const counter = useState('counter', () => 0)
 const increment = () => counter.value++
 const decrement = () => counter.value--
+
+// Ambil data dari API internal kita
+const { data: apiResponse, refresh } = await useFetch<ApiResponse>('/api/stats')
+
+// Pakai timer dari composable (AUTO-IMPORTED!)
+const { seconds, isActive, start, pause, reset } = useTimer()
 </script>
 
 <template>
   <div class="main-container">
     <h1>🚀 Selamat Datang di Timekeeper</h1>
+    
+    <!-- Bagian Timer Baru -->
+    <div class="timer-section">
+      <div class="timer-display">{{ seconds }} Detik</div>
+      <div class="timer-controls">
+        <button v-if="!isActive" @click="start" class="btn-start">▶️ Mulai</button>
+        <button v-else @click="pause" class="btn-pause">⏸️ Jeda</button>
+        <button @click="reset" class="btn-reset">⏹️ Reset</button>
+      </div>
+    </div>
     <p>Ini adalah halaman pertama kamu menggunakan struktur <strong>Nuxt 4</strong>.</p>
     
     <div class="info-box">
@@ -68,6 +81,30 @@ const decrement = () => counter.value--
 </template>
 
 <style scoped>
+.timer-section {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px dashed #ddd;
+}
+.timer-display {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #42b883;
+}
+.timer-controls button {
+  margin: 0 5px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.btn-start { background: #42b883; color: white; }
+.btn-pause { background: #fbc02d; color: white; }
+.btn-reset { background: #e0e0e0; color: #333; }
+
 .main-container {
   font-family: sans-serif;
   max-width: 600px;
