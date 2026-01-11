@@ -33,7 +33,10 @@ const {
   adjustTime,
   updateNotes,
   reorderAgendas,
-  toggleChangeLog
+  toggleChangeLog,
+  addReminder,
+  updateReminder,
+  deleteReminder
 } = useTimekeeper()
 
 // Real-time clock
@@ -118,6 +121,8 @@ useHead({
           :running-id="runningAgenda?.id ?? null"
           :estimated-start-times="estimatedStartTimes"
           @select="selectAgenda"
+          @reorder="reorderAgendas"
+          @adjust="adjustTime"
         />
       </aside>
 
@@ -132,6 +137,9 @@ useHead({
           @cancel="cancelAgenda"
           @adjust="adjustTime"
           @update-notes="updateNotes"
+          @add-reminder="addReminder"
+          @update-reminder="updateReminder"
+          @delete-reminder="deleteReminder"
         />
       </main>
     </div>

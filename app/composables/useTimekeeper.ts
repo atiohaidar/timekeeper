@@ -352,6 +352,39 @@ export function useTimekeeper() {
         isChangeLogVisible.value = !isChangeLogVisible.value
     }
 
+    // ===== REMINDER MANAGEMENT =====
+    function addReminder(agendaId: string, reminder: Omit<Reminder, 'id'>) {
+        const agenda = agendas.value.find(a => a.id === agendaId)
+        if (!agenda) return
+
+        const newReminder: Reminder = {
+            ...reminder,
+            id: generateId()
+        }
+
+        agenda.reminders.push(newReminder)
+    }
+
+    function updateReminder(agendaId: string, reminderId: string, updates: Partial<Omit<Reminder, 'id'>>) {
+        const agenda = agendas.value.find(a => a.id === agendaId)
+        if (!agenda) return
+
+        const reminder = agenda.reminders.find(r => r.id === reminderId)
+        if (!reminder) return
+
+        Object.assign(reminder, updates)
+    }
+
+    function deleteReminder(agendaId: string, reminderId: string) {
+        const agenda = agendas.value.find(a => a.id === agendaId)
+        if (!agenda) return
+
+        const index = agenda.reminders.findIndex(r => r.id === reminderId)
+        if (index !== -1) {
+            agenda.reminders.splice(index, 1)
+        }
+    }
+
     // Cleanup on unmount
     onUnmounted(() => {
         if (timerInterval) {
@@ -384,6 +417,9 @@ export function useTimekeeper() {
         adjustTime,
         updateNotes,
         reorderAgendas,
-        toggleChangeLog
+        toggleChangeLog,
+        addReminder,
+        updateReminder,
+        deleteReminder
     }
 }

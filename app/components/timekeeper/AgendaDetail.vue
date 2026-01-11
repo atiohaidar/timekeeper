@@ -28,6 +28,9 @@ const emit = defineEmits<{
   cancel: [id: string]
   adjust: [id: string, minutes: number]
   updateNotes: [id: string, notes: string]
+  addReminder: [agendaId: string, reminder: { offsetMinutes: number, division: string, message: string, icon?: string }]
+  updateReminder: [agendaId: string, reminderId: string, updates: { offsetMinutes?: number, division?: string, message?: string, icon?: string }]
+  deleteReminder: [agendaId: string, reminderId: string]
 }>()
 
 // Computed: formatted elapsed time
@@ -99,6 +102,64 @@ function handleNotesInput() {
       emit('updateNotes', props.agenda.id, localNotes.value)
     }
   }, 500)
+}
+
+// ===== REMINDER MANAGEMENT =====
+const isAddingReminder = ref(false)
+const editingReminderId = ref<string | null>(null)
+const reminderForm = ref({
+  offsetMinutes: 0,
+  division: '',
+  message: '',
+  icon: ''
+})
+
+function startAddReminder() {
+  isAddingReminder.value = true
+  editingReminderId.value = null
+  reminderForm.value = { offsetMinutes: 0, division: '', message: '', icon: '' }
+}
+
+function startEditReminder(reminderId: string) {
+  if (!props.agenda) return
+  const reminder = props.agenda.reminders.find(r => r.id === reminderId)
+  if (!reminder) return
+  
+  editingReminderId.value = reminderId
+  isAddingReminder.value = false
+  reminderForm.value = {
+    offsetMinutes: reminder.offsetMinutes,
+    division: reminder.division,
+    message: reminder.message,
+    icon: reminder.icon || ''
+  }
+}
+
+function saveReminder() {
+  if (!props.agenda) return
+  
+  if (editingReminderId.value) {
+    // Update existing
+    emit('updateReminder', props.agenda.id, editingReminderId.value, reminderForm.value)
+    editingReminderId.value = null
+  } else {
+    // Add new
+    emit('addReminder', props.agenda.id, reminderForm.value)
+    isAddingReminder.value = false
+  }
+  
+  reminderForm.value = { offsetMinutes: 0, division: '', message: '', icon: '' }
+}
+
+function cancelReminderForm() {
+  isAddingReminder.value = false
+  editingReminderId.value = null
+  reminderForm.value = { offsetMinutes: 0, division: '', message: '', icon: '' }
+}
+
+function handleDeleteReminder(reminderId: string) {
+  if (!props.agenda) return
+  emit('deleteReminder', props.agenda.id, reminderId)
 }
 </script>
 
@@ -275,6 +336,117 @@ function handleNotesInput() {
         >
           ❌ Batalkan
         </button>
+      </div>
+
+      <!-- Reminder Management Section -->
+      <div class="mb-6 border-t-2 border-dashed border-notebook-lines pt-6">
+        <div class="flex items-center justify-between mb-3">
+          <p class="font-handwritten text-lg text-notebook-ink flex items-center gap-2">
+            📌 Reminder & Alerts
+          </p>
+          <button
+            v-if="!isAddingReminder && !editingReminderId"
+            class="btn-sketchy text-xs py-1 px-2"
+            @click="startAddReminder"
+          >
+            + Tambah
+          </button>
+        </div>
+
+        <!-- Reminder List -->
+        <div v-if="agenda.reminders.length > 0" class="space-y-2 mb-3">
+          <div
+            v-for="reminder in agenda.reminders"
+            :key="reminder.id"
+            class="border-sketchy-light p-3 bg-notebook-paper-dark flex items-start gap-3"
+            :class="editingReminderId === reminder.id && 'ring-2 ring-notebook-ink/20'"
+          >
+            <div class="text-2xl flex-shrink-0">{{ reminder.icon || '📍' }}</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-typewriter text-xs font-bold text-notebook-ink/60">
+                  {{ reminder.offsetMinutes >= 0 ? `+${reminder.offsetMinutes}m` : `${reminder.offsetMinutes}m` }}
+                </span>
+                <span class="text-xs px-1.5 py-0.5 bg-notebook-ink/10 rounded font-handwritten">
+                  {{ reminder.division }}
+                </span>
+              </div>
+              <p class="font-handwritten text-sm text-notebook-ink">{{ reminder.message }}</p>
+            </div>
+            <div class="flex gap-1">
+              <button
+                class="text-xs text-notebook-ink/40 hover:text-notebook-ink"
+                @click="startEditReminder(reminder.id)"
+              >
+                ✏️
+              </button>
+              <button
+                class="text-xs text-pen-red/40 hover:text-pen-red"
+                @click="handleDeleteReminder(reminder.id)"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add/Edit Reminder Form -->
+        <div v-if="isAddingReminder || editingReminderId" class="border-sketchy p-3 bg-yellow-50/30 space-y-3">
+          <p class="font-handwritten text-sm font-bold text-notebook-ink">
+            {{ editingReminderId ? '✏️ Edit Reminder' : '➕ Tambah Reminder Baru' }}
+          </p>
+          
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="font-handwritten text-xs text-notebook-ink-light">Waktu (menit)</label>
+              <input
+                v-model.number="reminderForm.offsetMinutes"
+                type="number"
+                class="w-full px-2 py-1 border border-notebook-lines rounded font-typewriter text-sm"
+                placeholder="-5 atau +10"
+              />
+            </div>
+            <div>
+              <label class="font-handwritten text-xs text-notebook-ink-light">Divisi</label>
+              <input
+                v-model="reminderForm.division"
+                type="text"
+                class="w-full px-2 py-1 border border-notebook-lines rounded font-handwritten text-sm"
+                placeholder="Sound, MC, dll"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="font-handwritten text-xs text-notebook-ink-light">Pesan</label>
+            <input
+              v-model="reminderForm.message"
+              type="text"
+              class="w-full px-2 py-1 border border-notebook-lines rounded font-handwritten text-sm"
+              placeholder="Siapkan mic..."
+            />
+          </div>
+
+          <div>
+            <label class="font-handwritten text-xs text-notebook-ink-light">Icon (emoji)</label>
+            <input
+              v-model="reminderForm.icon"
+              type="text"
+              class="w-full px-2 py-1 border border-notebook-lines rounded font-handwritten text-sm"
+              placeholder="🔊 📽️ 🎤"
+              maxlength="2"
+            />
+          </div>
+
+          <div class="flex gap-2">
+            <button class="btn-sketchy btn-sketchy-primary text-xs py-1 px-3 flex-1" @click="saveReminder">
+              {{ editingReminderId ? 'Simpan' : 'Tambah' }}
+            </button>
+            <button class="btn-sketchy text-xs py-1 px-3" @click="cancelReminderForm">
+              Batal
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Notes section -->

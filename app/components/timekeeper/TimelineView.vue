@@ -21,9 +21,42 @@ const props = defineProps<{
   eventEndHour?: number    // Default 13
 }>()
 
-// Emits
+// Drag State
+const draggedId = ref<string | null>(null)
+const dragOverId = ref<string | null>(null)
+const isEditMode = ref(false)
+
+function handleDragStart(id: string) {
+  if (!isEditMode.value) return 
+  draggedId.value = id
+}
+
+function handleDragEnd() {
+  draggedId.value = null
+  dragOverId.value = null
+}
+
+function handleDragOver(id: string) {
+  dragOverId.value = id
+}
+
+function handleDrop(toId: string) {
+  if (draggedId.value && draggedId.value !== toId) {
+    const fromIndex = props.agendas.findIndex(a => a.id === draggedId.value)
+    const toIndex = props.agendas.findIndex(a => a.id === toId)
+    
+    if (fromIndex !== -1 && toIndex !== -1) {
+      emit('reorder', fromIndex, toIndex)
+    }
+  }
+  handleDragEnd()
+}
+
+// Emits for resizing
 const emit = defineEmits<{
   select: [id: string]
+  reorder: [fromIndex: number, toIndex: number]
+  adjust: [id: string, minutes: number]
 }>()
 
 // Timeline configuration - calculate from agenda data
@@ -56,11 +89,30 @@ const pixelsPerMinute = computed(() => {
 // Current time for "Now Indicator"
 const currentTime = ref(new Date())
 let clockInterval: ReturnType<typeof setInterval> | null = null
+const timelineContainer = ref<HTMLElement | null>(null)
+
+function scrollToNow(smooth = true) {
+  if (!timelineContainer.value || !isNowVisible.value) return
+  
+  // Calculate center position
+  const containerHeight = timelineContainer.value.clientHeight
+  const targetScroll = nowIndicatorTop.value - (containerHeight / 3) // Focus slightly above center
+  
+  timelineContainer.value.scrollTo({
+    top: Math.max(0, targetScroll),
+    behavior: smooth ? 'smooth' : 'auto'
+  })
+}
 
 onMounted(() => {
   clockInterval = setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
+
+  // Initial scroll after a short delay to ensure rendering is complete
+  setTimeout(() => {
+    scrollToNow(false)
+  }, 500)
 })
 
 onUnmounted(() => {
@@ -130,8 +182,11 @@ const PIN_HEIGHT = 60 // Approximate height of a pin in pixels
 const allReminders = computed((): AbsoluteReminder[] => {
   const reminders: AbsoluteReminder[] = []
   for (const agenda of props.agendas) {
+    // Use estimated start time if available, otherwise fall back to planned
+    const agendaStartTime = props.estimatedStartTimes?.get(agenda.id) || agenda.plannedStartTime
+    
     for (const reminder of agenda.reminders) {
-      const absoluteTime = new Date(agenda.plannedStartTime.getTime() + reminder.offsetMinutes * 60 * 1000)
+      const absoluteTime = new Date(agendaStartTime.getTime() + reminder.offsetMinutes * 60 * 1000)
       const baseTop = getTopPosition(absoluteTime)
       reminders.push({
         ...reminder,
@@ -165,12 +220,39 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
 </script>
 
 <template>
-  <div class="h-full overflow-y-auto bg-notebook-paper">
+  <div ref="timelineContainer" class="h-full overflow-y-auto bg-notebook-paper">
     <!-- Header -->
-    <div class="sticky top-0 z-20 bg-notebook-paper border-b-2 border-notebook-lines px-4 py-3">
-      <h2 class="font-handwritten-alt text-xl md:text-2xl font-bold text-notebook-ink">
-        📋 Timeline Acara
-      </h2>
+    <div class="sticky top-0 z-20 bg-notebook-paper border-b-2 border-notebook-lines px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h2 class="font-handwritten-alt text-xl md:text-2xl font-bold text-notebook-ink">
+          📋 Timeline Acara
+        </h2>
+        
+        <!-- Go to Now Button -->
+        <button 
+          v-if="isNowVisible"
+          class="text-[10px] font-bold text-red-500 border border-red-500/30 rounded px-1.5 py-0.5 hover:bg-red-50 hover:border-red-500 transition-all flex items-center gap-1.5"
+          title="Ke Waktu Sekarang"
+          @click="() => scrollToNow()"
+        >
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+          </span>
+          SEKARANG
+        </button>
+      </div>
+      
+      <!-- Edit Mode Toggle -->
+      <button 
+        class="btn-sketchy text-xs py-1 px-3 flex items-center gap-2"
+        :class="isEditMode ? 'bg-pen-red/10 text-pen-red border-pen-red shadow-none translate-y-0.5' : 'text-notebook-ink-light'"
+        @click="isEditMode = !isEditMode"
+      >
+        <span v-if="isEditMode">🔓 MODE EDIT AKTIF</span>
+        <span v-else>🔒 MODE VIEW</span>
+        <span class="text-lg">{{ isEditMode ? '✏️' : '👁️' }}</span>
+      </button>
     </div>
 
     <!-- Timeline Grid -->
@@ -211,10 +293,20 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
           :agenda="agenda"
           :is-selected="selectedId === agenda.id"
           :is-running="runningId === agenda.id"
+          :is-edit-mode="isEditMode"
+          :class="[
+            draggedId === agenda.id && 'opacity-40 grayscale',
+            dragOverId === agenda.id && draggedId !== agenda.id && 'ring-4 ring-notebook-ink/20 ring-offset-2'
+          ]"
           :top="getTopPosition(estimatedStartTimes?.get(agenda.id) ?? agenda.plannedStartTime)"
           :height="getHeight(agenda.plannedDuration)"
           :estimated-start-time="estimatedStartTimes?.get(agenda.id) ?? null"
           @select="emit('select', $event)"
+          @drag-start="handleDragStart"
+          @drag-end="handleDragEnd"
+          @drag-over="handleDragOver"
+          @drop="handleDrop"
+          @adjust="emit('adjust', agenda.id, $event)"
         />
 
         <!-- Now Indicator -->
