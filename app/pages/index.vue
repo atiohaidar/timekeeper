@@ -10,11 +10,11 @@ interface ApiResponse {
   }
 }
 
-// Global state menggunakan useState (State Management Dasar)
-// 'counter' adalah key unik agar bisa diakses di halaman lain
-const counter = useState('counter', () => 0)
-const increment = () => counter.value++
-const decrement = () => counter.value--
+// Import store secara eksplisit
+import { useAppStore } from '~/stores/app'
+
+// Ganti useState dengan Pinia store
+const appStore = useAppStore()
 
 // Ambil data dari API internal kita
 const { data: apiResponse, refresh } = await useFetch<ApiResponse>('/api/stats')
@@ -64,11 +64,12 @@ const { seconds, isActive, start, pause, reset } = useTimer()
 
     <!-- Bagian Eksperimen State Management -->
     <div class="state-box">
-      <h3>🧩 Global State (useState):</h3>
-      <p>Nilai Counter: <span class="counter-value">{{ counter }}</span></p>
+      <h3>🧩 Global State (Pinia Store):</h3>
+      <p>Nilai Counter: <span class="counter-value">{{ appStore.counter }}</span></p>
+      <p>Status: <span :class="{ 'even': appStore.isEven, 'odd': !appStore.isEven }">{{ appStore.isEven ? 'Genap' : 'Ganjil' }}</span></p>
       <div class="counter-btns">
-        <button @click="decrement" class="btn btn-red">➖ Kurang</button>
-        <button @click="increment" class="btn btn-green">➕ Tambah</button>
+        <button @click="appStore.decrement" class="btn btn-red">➖ Kurang</button>
+        <button @click="appStore.increment" class="btn btn-green">➕ Tambah</button>
       </div>
       <p class="small-text">Coba ubah angka di atas, lalu pindah ke halaman "Tentang".</p>
     </div>

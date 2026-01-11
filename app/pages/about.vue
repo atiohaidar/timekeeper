@@ -1,6 +1,9 @@
 <script setup lang="ts">
-// Mengakses state yang sama dengan key 'counter'
-const counter = useState('counter', () => 0)
+// Import store secara eksplisit
+import { useAppStore } from '~/stores/app'
+
+// Mengakses store yang sama dengan Pinia
+const appStore = useAppStore()
 </script>
 
 <template>
@@ -9,8 +12,8 @@ const counter = useState('counter', () => 0)
     <p>Ini adalah halaman kedua yang dibuat untuk mendemonstrasikan routing di Nuxt 4.</p>
     
     <div class="shared-state-info">
-      <p>Global Counter dari halaman utama: <strong>{{ counter }}</strong></p>
-      <p v-if="counter > 10" style="color: #d32f2f">Wah, angkanya sudah lebih dari 10! 🔥</p>
+      <p>Global Counter dari halaman utama: <strong>{{ appStore.counter }}</strong></p>
+      <p v-if="appStore.counter > 10" style="color: #d32f2f">Wah, angkanya sudah lebih dari 10! 🔥</p>
     </div>
 
     <div class="navigation">

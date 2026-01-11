@@ -66,3 +66,66 @@ export const useApp = () => {
   return { global, lokal }
 }
 ```
+
+---
+
+## 7. State Management: Pinia
+Pinia adalah library state management resmi untuk Vue 3, yang terintegrasi dengan Nuxt 4. Ia menyediakan cara terstruktur untuk mengelola state global yang lebih scalable dibanding `useState`.
+
+### Karakteristik Utama:
+- **Terstruktur**: Menggunakan **Store** dengan state, actions, dan getters.
+- **Scalable**: Cocok untuk aplikasi besar dengan banyak state.
+- **TypeScript Friendly**: Auto-infer tipe, lebih aman dan IDE-friendly.
+- **DevTools Integration**: Bisa inspect state di Vue DevTools.
+- **Plugins**: Mendukung persist (localStorage), undo/redo, dll.
+- **SSR Compatible**: Bekerja baik dengan Nuxt SSR.
+
+### Setup di Nuxt:
+1. Install: `npm install pinia @pinia/nuxt`
+2. Tambah module di `nuxt.config.ts`:
+   ```typescript
+   export default defineNuxtConfig({
+     modules: ['@pinia/nuxt']
+   })
+   ```
+3. Buat store di `app/stores/`: Auto-imported.
+
+### Contoh Penggunaan:
+```typescript
+// app/stores/app.ts
+import { defineStore } from 'pinia'
+
+export const useAppStore = defineStore('app', () => {
+  const counter = ref(0)  // State
+  const increment = () => counter.value++  // Action
+  const decrement = () => counter.value--  // Action
+  const isEven = computed(() => counter.value % 2 === 0)  // Getter
+
+  return { counter, increment, decrement, isEven }
+})
+```
+
+```vue
+<!-- Di komponen -->
+<script setup>
+const appStore = useAppStore()
+</script>
+<template>
+  <p>Counter: {{ appStore.counter }}</p>
+  <button @click="appStore.increment">+</button>
+  <p>Status: {{ appStore.isEven ? 'Genap' : 'Ganjil' }}</p>
+</template>
+```
+
+### Perbandingan: Pinia vs `useState`
+
+| Fitur                | `useState`                          | Pinia                                |
+| :------------------- | :---------------------------------- | :----------------------------------- |
+| **Struktur**         | Sederhana, hanya state + key.       | Store dengan actions, getters.       |
+| **Scalability**      | Baik untuk kecil, tapi tidak rapi besar. | **Sangat scalable** untuk app besar. |
+| **TypeScript**       | Manual typing.                      | **Auto-infer** tipe.                 |
+| **DevTools**         | Terbatas.                           | **Penuh support** di Vue DevTools.   |
+| **Plugins**          | Tidak ada.                          | Banyak (persist, dll).               |
+| **SSR**              | Ya, tapi sederhana.                 | Ya, optimized.                       |
+
+> **Kapan pakai Pinia?** Jika app mulai kompleks (auth, cart, settings), atau butuh devtools/debugging. Untuk hal kecil, `useState` cukup.
