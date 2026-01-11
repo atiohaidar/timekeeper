@@ -12,15 +12,36 @@
   - Notes textarea styled like notebook paper
 -->
 <script setup lang="ts">
-import type { Agenda } from '~/composables/useTimekeeper'
+import type { Agenda } from '~/stores/timekeeper'
+import { storeToRefs } from 'pinia'
+import { useTimekeeperStore } from '~/stores/timekeeper'
+import { useToast } from '~/composables/useToast'
 
-// Props
-const props = defineProps<{
-  agenda: Agenda | null
-  elapsedSeconds: number
-  estimatedStartTime?: Date | null
-  runningAgenda?: Agenda | null
-}>()
+const store = useTimekeeperStore()
+const toast = useToast()
+
+// Getting state and actions from store
+const {
+  selectedAgenda: agenda,
+  elapsedSeconds,
+  runningAgenda,
+} = storeToRefs(store)
+
+const {
+  getEstimatedStartTime,
+  startAgenda,
+  stopAgenda,
+  cancelAgenda,
+  adjustTime,
+  updateNotes,
+  addReminder,
+  updateReminder,
+  deleteReminder
+} = store
+
+const estimatedStartTime = computed(() => {
+  return agenda.value ? getEstimatedStartTime(agenda.value.id) : null
+})
 
 // Emits
 const emit = defineEmits<{
@@ -36,25 +57,25 @@ const emit = defineEmits<{
 
 // Computed: formatted elapsed time
 const elapsedFormatted = computed(() => {
-  const minutes = Math.floor(props.elapsedSeconds / 60)
-  const seconds = props.elapsedSeconds % 60
+  const minutes = Math.floor(elapsedSeconds.value / 60)
+  const seconds = elapsedSeconds.value % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
 
 // Computed: progress percentage
 const progressPercent = computed(() => {
-  if (!props.agenda) return 0
-  const totalSeconds = props.agenda.plannedDuration * 60
-  const percent = (props.elapsedSeconds / totalSeconds) * 100
+  if (!agenda.value) return 0
+  const totalSeconds = agenda.value.plannedDuration * 60
+  const percent = (elapsedSeconds.value / totalSeconds) * 100
   return Math.min(percent, 100)
 })
 
 // Computed: time status (on time, overtime)
 const timeStatus = computed(() => {
-  if (!props.agenda) return 'normal'
-  const totalSeconds = props.agenda.plannedDuration * 60
-  if (props.elapsedSeconds > totalSeconds) return 'overtime'
-  if (props.elapsedSeconds > totalSeconds * 0.8) return 'warning'
+  if (!agenda.value) return 'normal'
+  const totalSeconds = agenda.value.plannedDuration * 60
+  if (elapsedSeconds.value > totalSeconds) return 'overtime'
+  if (elapsedSeconds.value > totalSeconds * 0.8) return 'warning'
   return 'normal'
 })
 
@@ -65,32 +86,39 @@ function formatTime(date: Date): string {
 
 // Computed: original planned end time
 const plannedEndTime = computed(() => {
-  if (!props.agenda) return ''
-  const endTime = new Date(props.agenda.plannedStartTime.getTime() + props.agenda.plannedDuration * 60000)
+  if (!agenda.value) return ''
+  const endTime = new Date(agenda.value.plannedStartTime.getTime() + agenda.value.plannedDuration * 60000)
   return formatTime(endTime)
 })
 
 // Computed: estimated end time based on the cascading schedule
 const estimatedEndTime = computed(() => {
-  if (!props.agenda) return ''
-  const start = props.estimatedStartTime || props.agenda.plannedStartTime
-  const endTime = new Date(start.getTime() + props.agenda.plannedDuration * 60000)
+  if (!agenda.value) return ''
+  const start = estimatedStartTime.value || agenda.value.plannedStartTime
+  const endTime = new Date(start.getTime() + agenda.value.plannedDuration * 60000)
   return formatTime(endTime)
 })
 
 // Check if there's a delay (estimated differs from planned by more than 1 min)
 const hasDelay = computed(() => {
-  if (!props.agenda || !props.estimatedStartTime) return false
-  const diff = Math.abs(props.estimatedStartTime.getTime() - props.agenda.plannedStartTime.getTime())
+  if (!agenda.value || !estimatedStartTime.value) return false
+  const diff = Math.abs(estimatedStartTime.value.getTime() - agenda.value.plannedStartTime.getTime())
   return diff > 60000 // More than 1 minute difference
 })
 
 // Local notes state for two-way binding
 const localNotes = ref('')
+const containerRef = ref<HTMLElement | null>(null)
 
-watch(() => props.agenda, (newAgenda) => {
+watch(agenda, (newAgenda) => {
   if (newAgenda) {
     localNotes.value = newAgenda.notes
+    // Scroll to top when agenda changes
+    nextTick(() => {
+      if (containerRef.value) {
+        containerRef.value.scrollTop = 0
+      }
+    })
   }
 }, { immediate: true })
 
@@ -99,8 +127,8 @@ let notesTimeout: ReturnType<typeof setTimeout> | null = null
 function handleNotesInput() {
   if (notesTimeout) clearTimeout(notesTimeout)
   notesTimeout = setTimeout(() => {
-    if (props.agenda) {
-      emit('updateNotes', props.agenda.id, localNotes.value)
+    if (agenda.value) {
+      updateNotes(agenda.value.id, localNotes.value)
     }
   }, 500)
 }
@@ -122,8 +150,8 @@ function startAddReminder() {
 }
 
 function startEditReminder(reminderId: string) {
-  if (!props.agenda) return
-  const reminder = props.agenda.reminders.find(r => r.id === reminderId)
+  if (!agenda.value) return
+  const reminder = agenda.value.reminders.find(r => r.id === reminderId)
   if (!reminder) return
   
   editingReminderId.value = reminderId
@@ -137,15 +165,17 @@ function startEditReminder(reminderId: string) {
 }
 
 function saveReminder() {
-  if (!props.agenda) return
+  if (!agenda.value) return
   
   if (editingReminderId.value) {
     // Update existing
-    emit('updateReminder', props.agenda.id, editingReminderId.value, reminderForm.value)
+    updateReminder(agenda.value.id, editingReminderId.value, reminderForm.value)
+    toast.success('Reminder berhasil diperbarui')
     editingReminderId.value = null
   } else {
     // Add new
-    emit('addReminder', props.agenda.id, reminderForm.value)
+    addReminder(agenda.value.id, reminderForm.value)
+    toast.success('Reminder baru ditambahkan')
     isAddingReminder.value = false
   }
   
@@ -159,8 +189,9 @@ function cancelReminderForm() {
 }
 
 function handleDeleteReminder(reminderId: string) {
-  if (!props.agenda) return
-  emit('deleteReminder', props.agenda.id, reminderId)
+  if (!agenda.value) return
+  deleteReminder(agenda.value.id, reminderId)
+  toast.success('Reminder dihapus')
 }
 
 // ===== START CONFIRMATION =====
@@ -168,17 +199,11 @@ const showStartConfirmation = ref(false)
 const pendingStartId = ref<string | null>(null)
 
 function handleStart() {
-  if (!props.agenda) return
+  if (!agenda.value) return
   
-  // Check if another agenda is running
-  if (props.runningAgenda && props.runningAgenda.id !== props.agenda.id) {
-    // Show confirmation modal
-    showStartConfirmation.value = true
-    pendingStartId.value = props.agenda.id
-  } else {
-    // No conflict, start directly
-    emit('start', props.agenda.id)
-  }
+  // Show confirmation modal for starting
+  showStartConfirmation.value = true
+  pendingStartId.value = agenda.value.id
 }
 
 function confirmStart() {
@@ -194,6 +219,60 @@ function cancelStart() {
   pendingStartId.value = null
 }
 
+// ===== STOP/FINISH CONFIRMATION =====
+const showStopConfirmation = ref(false)
+
+function handleStop() {
+  if (!agenda.value) return
+  showStopConfirmation.value = true
+}
+
+function confirmStop() {
+  if (agenda.value) {
+    emit('stop', agenda.value.id)
+  }
+  showStopConfirmation.value = false
+}
+
+function cancelStop() {
+  showStopConfirmation.value = false
+}
+
+// ===== CANCEL CONFIRMATION =====
+const showCancelConfirmation = ref(false)
+
+function handleCancel() {
+  if (!agenda.value) return
+  showCancelConfirmation.value = true
+}
+
+function confirmCancel() {
+  if (agenda.value) {
+    emit('cancel', agenda.value.id)
+  }
+  showCancelConfirmation.value = false
+}
+
+function cancelCancelAction() {
+  showCancelConfirmation.value = false
+}
+
+// Computed messages for modals
+const startConfirmationMessage = computed(() => {
+  if (runningAgenda.value && runningAgenda.value.id !== agenda.value?.id) {
+    return `Agenda "${runningAgenda.value?.title}" sedang berjalan. Apakah kamu yakin ingin menghentikannya dan memulai agenda "${agenda.value?.title}"?`
+  }
+  return `Apakah kamu yakin ingin memulai agenda "${agenda.value?.title}" sekarang?`
+})
+
+const stopConfirmationMessage = computed(() => {
+  return `Apakah agenda "${agenda.value?.title}" sudah benar-benar selesai?`
+})
+
+const cancelConfirmationMessage = computed(() => {
+  return `Apakah kamu yakin ingin membatalkan agenda "${agenda.value?.title}"? Tindakan ini tidak dapat dibatalkan.`
+})
+
 // ===== CUSTOM TIME ADJUSTMENT =====
 const customAdjustMinutes = ref(0)
 
@@ -206,14 +285,14 @@ function decrementAdjust() {
 }
 
 function applyCustomAdjust() {
-  if (!props.agenda || customAdjustMinutes.value === 0) return
-  emit('adjust', props.agenda.id, customAdjustMinutes.value)
+  if (!agenda.value || customAdjustMinutes.value === 0) return
+  emit('adjust', agenda.value.id, customAdjustMinutes.value)
   customAdjustMinutes.value = 0
 }
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-notebook-paper p-4 md:p-6 overflow-y-auto">
+  <div ref="containerRef" class="h-full flex flex-col bg-notebook-paper p-4 md:p-6 overflow-y-auto">
     <!-- Empty state -->
     <div v-if="!agenda" class="flex-1 flex items-center justify-center">
       <div class="text-center">
@@ -362,7 +441,7 @@ function applyCustomAdjust() {
         <button
           v-if="agenda.status === 'running'"
           class="btn-sketchy-large btn-sketchy-success"
-          @click="emit('stop', agenda.id)"
+          @click="handleStop"
         >
           ✅ SELESAI
         </button>
@@ -420,7 +499,7 @@ function applyCustomAdjust() {
         <div class="flex justify-center">
           <button
             class="btn-sketchy btn-sketchy-danger text-sm py-1 px-3"
-            @click="emit('cancel', agenda.id)"
+            @click="handleCancel"
           >
             ❌ Batalkan Agenda
           </button>
@@ -487,32 +566,41 @@ function applyCustomAdjust() {
           
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="font-handwritten text-xs text-notebook-ink-light">Waktu (menit)</label>
+              <label class="font-handwritten text-xs text-notebook-ink-light">
+                Waktu (menit) <span class="text-pen-red">*</span>
+              </label>
               <input
                 v-model.number="reminderForm.offsetMinutes"
                 type="number"
                 class="w-full px-2 py-1 border border-notebook-lines rounded font-typewriter text-sm"
                 placeholder="-5 atau +10"
+                required
               />
             </div>
             <div>
-              <label class="font-handwritten text-xs text-notebook-ink-light">Divisi</label>
+              <label class="font-handwritten text-xs text-notebook-ink-light">
+                Divisi <span class="text-pen-red">*</span>
+              </label>
               <input
                 v-model="reminderForm.division"
                 type="text"
                 class="w-full px-2 py-1 border border-notebook-lines rounded font-handwritten text-sm"
                 placeholder="Sound, MC, dll"
+                required
               />
             </div>
           </div>
 
           <div>
-            <label class="font-handwritten text-xs text-notebook-ink-light">Pesan</label>
+            <label class="font-handwritten text-xs text-notebook-ink-light">
+              Pesan <span class="text-pen-red">*</span>
+            </label>
             <input
               v-model="reminderForm.message"
               type="text"
               class="w-full px-2 py-1 border border-notebook-lines rounded font-handwritten text-sm"
               placeholder="Siapkan mic..."
+              required
             />
           </div>
 
@@ -550,41 +638,40 @@ function applyCustomAdjust() {
       </div>
     </template>
 
-    <!-- Confirmation Modal -->
-    <div
-      v-if="showStartConfirmation"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      @click.self="cancelStart"
-    >
-      <div class="bg-notebook-paper border-4 border-notebook-ink rounded-lg p-6 max-w-md mx-4 shadow-2xl">
-        <h3 class="font-handwritten-alt text-2xl font-bold text-notebook-ink mb-4">
-          ⚠️ Konfirmasi
-        </h3>
-        
-        <div class="mb-6 space-y-3">
-          <p class="font-handwritten text-lg text-notebook-ink">
-            Agenda <span class="font-bold text-pen-red">"{{ runningAgenda?.title }}"</span> sedang berjalan.
-          </p>
-          <p class="font-handwritten text-notebook-ink">
-            Apakah kamu yakin ingin menghentikannya dan memulai agenda <span class="font-bold">"{{ agenda?.title }}"</span>?
-          </p>
-        </div>
+    <!-- Start Confirmation Modal -->
+    <TimekeeperConfirmationModal
+      :is-visible="showStartConfirmation"
+      title="Konfirmasi Mulai Agenda"
+      :message="startConfirmationMessage"
+      confirm-text="Ya, Lanjutkan"
+      cancel-text="Batal"
+      type="warning"
+      @confirm="confirmStart"
+      @cancel="cancelStart"
+    />
 
-        <div class="flex gap-3">
-          <button
-            class="btn-sketchy btn-sketchy-danger flex-1 py-2"
-            @click="confirmStart"
-          >
-            Ya, Lanjutkan
-          </button>
-          <button
-            class="btn-sketchy flex-1 py-2"
-            @click="cancelStart"
-          >
-            Batal
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- Cancel Confirmation Modal -->
+    <TimekeeperConfirmationModal
+      :is-visible="showCancelConfirmation"
+      title="Batalkan Agenda?"
+      :message="cancelConfirmationMessage"
+      confirm-text="Ya, Batalkan"
+      cancel-text="Tidak"
+      type="danger"
+      @confirm="confirmCancel"
+      @cancel="cancelCancelAction"
+    />
+
+    <!-- Stop Confirmation Modal -->
+    <TimekeeperConfirmationModal
+      :is-visible="showStopConfirmation"
+      title="Selesaikan Agenda?"
+      :message="stopConfirmationMessage"
+      confirm-text="Ya, Selesai"
+      cancel-text="Belum"
+      type="success"
+      @confirm="confirmStop"
+      @cancel="cancelStop"
+    />
   </div>
 </template>

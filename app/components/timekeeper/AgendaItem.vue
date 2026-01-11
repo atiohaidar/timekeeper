@@ -12,7 +12,7 @@
 -->
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Agenda, AgendaStatus } from '~/composables/useTimekeeper'
+import type { Agenda, AgendaStatus } from '~/stores/timekeeper'
 
 // Props
 const props = defineProps<{

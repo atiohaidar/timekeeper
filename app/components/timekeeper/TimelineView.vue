@@ -9,17 +9,35 @@
   - "Now Indicator" red line
 -->
 <script setup lang="ts">
-import type { Agenda, Reminder } from '~/composables/useTimekeeper'
+import type { Agenda, Reminder } from '~/stores/timekeeper'
+import { storeToRefs } from 'pinia'
+import { useTimekeeperStore } from '~/stores/timekeeper'
+import { useToast } from '~/composables/useToast'
+
+const store = useTimekeeperStore()
+const toast = useToast()
 
 // Props
-const props = defineProps<{
-  agendas: Agenda[]
-  selectedId: string | null
-  runningId: string | null
-  estimatedStartTimes?: Map<string, Date>
-  eventStartHour?: number  // Default 8
-  eventEndHour?: number    // Default 13
-}>()
+// No props needed as we use the store directly
+const {
+  eventName,
+  agendas,
+  selectedAgendaId,
+  changeLog,
+  isChangeLogVisible,
+  elapsedSeconds,
+  selectedAgenda,
+  runningAgenda,
+  sortedAgendas,
+  estimatedStartTimes,
+} = storeToRefs(store)
+
+const {
+  selectAgenda,
+  reorderAgendas,
+  adjustTime
+} = store
+
 
 // Drag State
 const draggedId = ref<string | null>(null)
@@ -42,33 +60,38 @@ function handleDragOver(id: string) {
 
 function handleDrop(toId: string) {
   if (draggedId.value && draggedId.value !== toId) {
-    const fromIndex = props.agendas.findIndex(a => a.id === draggedId.value)
-    const toIndex = props.agendas.findIndex(a => a.id === toId)
+    const fromIndex = sortedAgendas.value.findIndex(a => a.id === draggedId.value)
+    const toIndex = sortedAgendas.value.findIndex(a => a.id === toId)
     
     if (fromIndex !== -1 && toIndex !== -1) {
-      emit('reorder', fromIndex, toIndex)
+      reorderAgendas(fromIndex, toIndex)
+      toast.success('Urutan agenda diperbarui')
     }
   }
   handleDragEnd()
 }
 
-// Emits for resizing
+function handleAdjustTime(id: string, minutes: number) {
+  adjustTime(id, minutes)
+  const action = minutes > 0 ? '+' : ''
+  toast.info(`Durasi disesuaikan ${action}${minutes} menit`)
+}
+
+// Emits
 const emit = defineEmits<{
   select: [id: string]
-  reorder: [fromIndex: number, toIndex: number]
-  adjust: [id: string, minutes: number]
 }>()
 
 // Timeline configuration - calculate from agenda data
 const startHour = computed(() => {
-  if (props.agendas.length === 0) return 8
-  const minTime = Math.min(...props.agendas.map(a => a.plannedStartTime.getHours()))
+  if (sortedAgendas.value.length === 0) return 8
+  const minTime = Math.min(...sortedAgendas.value.map(a => a.plannedStartTime.getHours()))
   return Math.max(0, minTime - 1) // 1 hour padding before first event
 })
 
 const endHour = computed(() => {
-  if (props.agendas.length === 0) return 22
-  const maxEndTime = Math.max(...props.agendas.map(a => {
+  if (sortedAgendas.value.length === 0) return 22
+  const maxEndTime = Math.max(...sortedAgendas.value.map(a => {
     const endTime = new Date(a.plannedStartTime.getTime() + a.plannedDuration * 60 * 1000)
     return endTime.getHours() + (endTime.getMinutes() > 0 ? 1 : 0)
   }))
@@ -79,8 +102,8 @@ const totalHours = computed(() => endHour.value - startHour.value)
 
 // Dynamic scale: Adjust pixelsPerMinute so the shortest item is at least 60px high
 const pixelsPerMinute = computed(() => {
-  if (props.agendas.length === 0) return 4
-  const minDuration = Math.min(...props.agendas.map(a => a.plannedDuration))
+  if (sortedAgendas.value.length === 0) return 4
+  const minDuration = Math.min(...sortedAgendas.value.map(a => a.plannedDuration))
   // Target 60px for the shortest item, but keep scale between 2 and 12
   const scaled = Math.round(60 / Math.max(1, minDuration))
   return Math.max(2, Math.min(12, scaled))
@@ -183,9 +206,9 @@ const PIN_HEIGHT = 60 // Approximate height of a pin in pixels
 
 const allReminders = computed((): AbsoluteReminder[] => {
   const reminders: AbsoluteReminder[] = []
-  for (const agenda of props.agendas) {
+  for (const agenda of sortedAgendas.value) {
     // Use estimated start time if available, otherwise fall back to planned
-    const agendaStartTime = props.estimatedStartTimes?.get(agenda.id) || agenda.plannedStartTime
+    const agendaStartTime = estimatedStartTimes.value.get(agenda.id) || agenda.plannedStartTime
     
     for (const reminder of agenda.reminders) {
       const absoluteTime = new Date(agendaStartTime.getTime() + reminder.offsetMinutes * 60 * 1000)
@@ -244,6 +267,12 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
           SEKARANG
         </button>
       </div>
+        <!-- Time Jump Navigation -->
+      <div class="mt-3 flex justify-center mx-4">
+        <TimekeeperTimeJumpNav
+          @select-agenda="selectAgenda"
+        />
+      </div>
       
       <!-- Edit Mode Toggle -->
       <button 
@@ -288,27 +317,27 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
           :style="{ top: `${time.top}px` }"
         />
 
-        <!-- Agenda blocks -->
+        <!-- Timeline Block -->
         <TimekeeperTimelineBlock
-          v-for="agenda in agendas"
+          v-for="agenda in sortedAgendas"
           :key="agenda.id"
           :agenda="agenda"
-          :is-selected="selectedId === agenda.id"
-          :is-running="runningId === agenda.id"
+          :is-selected="selectedAgendaId === agenda.id"
+          :is-running="runningAgenda?.id === agenda.id"
           :is-edit-mode="isEditMode"
           :class="[
             draggedId === agenda.id && 'opacity-40 grayscale',
             dragOverId === agenda.id && draggedId !== agenda.id && 'ring-4 ring-notebook-ink/20 ring-offset-2'
           ]"
-          :top="getTopPosition(estimatedStartTimes?.get(agenda.id) ?? agenda.plannedStartTime)"
+          :top="getTopPosition(estimatedStartTimes.get(agenda.id) ?? agenda.plannedStartTime)"
           :height="getHeight(agenda.plannedDuration)"
-          :estimated-start-time="estimatedStartTimes?.get(agenda.id) ?? null"
-          @select="emit('select', $event)"
+          :estimated-start-time="estimatedStartTimes.get(agenda.id) ?? null"
+          @select="selectAgenda"
           @drag-start="handleDragStart"
           @drag-end="handleDragEnd"
           @drag-over="handleDragOver"
           @drop="handleDrop"
-          @adjust="emit('adjust', agenda.id, $event)"
+          @adjust="handleAdjustTime(agenda.id, $event)"
         />
 
         <!-- Now Indicator -->
@@ -322,24 +351,24 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
             <div class="relative flex items-center justify-center -ml-1.5">
               <div 
                 class="absolute w-4 h-4 rounded-full animate-ping opacity-75"
-                :class="runningId ? 'bg-red-500' : 'bg-green-500'"
+                :class="runningAgenda ? 'bg-red-500' : 'bg-green-500'"
               ></div>
               <div 
                 class="relative w-3 h-3 rounded-full"
-                :class="runningId ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]'"
+                :class="runningAgenda ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]'"
               ></div>
             </div>
             
             <!-- Line with Shadow - Dynamic Color -->
             <div 
               class="flex-1 h-0.5"
-              :class="runningId ? 'bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]' : 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]'"
+              :class="runningAgenda ? 'bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]' : 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]'"
             ></div>
 
             <!-- Current Time Label - Dynamic Color -->
             <div 
               class="text-white text-[10px] font-bold px-1.5 py-0.5 rounded ml-1 shadow-sm font-typewriter"
-              :class="runningId ? 'bg-red-500' : 'bg-green-500'"
+              :class="runningAgenda ? 'bg-red-500' : 'bg-green-500'"
             >
               {{ currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }}
             </div>

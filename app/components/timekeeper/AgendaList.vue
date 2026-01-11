@@ -11,16 +11,17 @@
   - Clear visual feedback for drop zones
 -->
 <script setup lang="ts">
-import type { Agenda } from '~/composables/useTimekeeper'
+import type { Agenda } from '~/stores/timekeeper'
+import { storeToRefs } from 'pinia'
+import { useTimekeeperStore } from '~/stores/timekeeper'
 
-// Props
-const props = defineProps<{
-  agendas: Agenda[]
-  selectedId: string | null
-  runningId: string | null
-}>()
+const store = useTimekeeperStore()
+const { sortedAgendas: agendas, selectedAgendaId: selectedId, runningAgenda } = storeToRefs(store)
+const { selectAgenda, reorderAgendas } = store
 
-// Emits
+const runningId = computed(() => runningAgenda.value?.id ?? null)
+
+// Emits - keeping for compatibility if requested
 const emit = defineEmits<{
   select: [id: string]
   reorder: [fromIndex: number, toIndex: number]

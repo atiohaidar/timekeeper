@@ -11,15 +11,19 @@
   - Newest entries at top (reverse chronological)
 -->
 <script setup lang="ts">
-import type { ChangeLogEntry } from '~/composables/useTimekeeper'
+import type { ChangeLogEntry } from '~/stores/timekeeper'
+import { storeToRefs } from 'pinia'
+import { useTimekeeperStore } from '~/stores/timekeeper'
 
-// Props
-const props = defineProps<{
-  entries: ChangeLogEntry[]
-  isVisible: boolean
-}>()
+const store = useTimekeeperStore()
+const { changeLog: entries, isChangeLogVisible: isVisible } = storeToRefs(store)
+const { toggleChangeLog: emit_toggle } = store
 
-// Emits
+function toggle() {
+  emit_toggle()
+}
+
+// Emits - keeping for compatibility if requested but we use store
 const emit = defineEmits<{
   toggle: []
 }>()

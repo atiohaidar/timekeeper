@@ -6,7 +6,7 @@
   Click to select.
 -->
 <script setup lang="ts">
-import type { Agenda } from '~/composables/useTimekeeper'
+import type { Agenda } from '~/stores/timekeeper'
 
 // Props
 const props = defineProps<{

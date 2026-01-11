@@ -1,12 +1,4 @@
-/**
- * useTimekeeper Composable
- * 
- * Central state management for the Timekeeper Dashboard.
- * Handles agenda items, timer logic, status changes, and change logging.
- * 
- * All data is stored in local state (no backend).
- */
-
+import { defineStore } from 'pinia'
 import { ref, computed, onUnmounted } from 'vue'
 
 // ===== TYPES =====
@@ -57,7 +49,6 @@ function formatTime(date: Date): string {
 // ===== DUMMY DATA =====
 function createDummyAgendas(): Agenda[] {
     const baseTime = new Date()
-    // Start from the current minute, rounded down seconds
     baseTime.setSeconds(0, 0)
 
     const items = [
@@ -88,7 +79,6 @@ function createDummyAgendas(): Agenda[] {
 
         let reminders: Reminder[] = []
 
-        // Add specific reminders based on title
         if (item.title === 'Briefing Panitia + Persiapan Acara') {
             reminders.push({ id: generateId(), offsetMinutes: 0, division: 'Panitia', message: 'Siapkan presensi & snack', icon: '📋' })
         } else if (item.title === 'Tilawah Al-Qur\'an') {
@@ -118,8 +108,7 @@ function createDummyAgendas(): Agenda[] {
     })
 }
 
-// ===== COMPOSABLE =====
-export function useTimekeeper() {
+export const useTimekeeperStore = defineStore('timekeeper', () => {
     // State
     const eventName = ref('Big Class 2 Islah 1 2022')
     const agendas = ref<Agenda[]>(createDummyAgendas())
@@ -145,8 +134,6 @@ export function useTimekeeper() {
         return [...agendas.value].sort((a, b) => a.order - b.order)
     })
 
-    // Computed: Calculate estimated start times based on actual delays
-    // Returns a Map of agendaId -> estimatedStartTime
     const estimatedStartTimes = computed(() => {
         const estimates = new Map<string, Date>()
         const sorted = sortedAgendas.value
@@ -157,33 +144,25 @@ export function useTimekeeper() {
             const agenda = sorted[i]
             if (!agenda) continue
 
-            // For cancelled agendas, skip but don't contribute to timeline
             if (agenda.status === 'cancelled') {
                 estimates.set(agenda.id, agenda.plannedStartTime)
                 continue
             }
 
-            // First non-cancelled agenda or no delay yet
             if (nextEstimatedStart === null) {
-                // If this agenda has already started, use actual start time
                 if (agenda.actualStartTime) {
                     estimates.set(agenda.id, agenda.actualStartTime)
-                    // Calculate when this agenda will/did end
                     if (agenda.actualEndTime) {
                         nextEstimatedStart = agenda.actualEndTime
                     } else {
-                        // Still running - estimate based on planned duration from actual start
                         nextEstimatedStart = new Date(agenda.actualStartTime.getTime() + agenda.plannedDuration * 60 * 1000)
                     }
                 } else {
-                    // Not started yet - use planned time
                     estimates.set(agenda.id, agenda.plannedStartTime)
                     nextEstimatedStart = new Date(agenda.plannedStartTime.getTime() + agenda.plannedDuration * 60 * 1000)
                 }
             } else {
-                // Subsequent agendas - cascade from previous
                 if (agenda.actualStartTime) {
-                    // Already started - use actual
                     estimates.set(agenda.id, agenda.actualStartTime)
                     if (agenda.actualEndTime) {
                         nextEstimatedStart = agenda.actualEndTime
@@ -191,7 +170,6 @@ export function useTimekeeper() {
                         nextEstimatedStart = new Date(agenda.actualStartTime.getTime() + agenda.plannedDuration * 60 * 1000)
                     }
                 } else {
-                    // Not started - estimate based on when previous ends
                     estimates.set(agenda.id, nextEstimatedStart)
                     nextEstimatedStart = new Date(nextEstimatedStart.getTime() + agenda.plannedDuration * 60 * 1000)
                 }
@@ -201,17 +179,12 @@ export function useTimekeeper() {
         return estimates
     })
 
-    // Helper: Get estimated start time for an agenda
     function getEstimatedStartTime(agendaId: string): Date | null {
         return estimatedStartTimes.value.get(agendaId) ?? null
     }
 
     // ===== CHANGE LOG HELPERS =====
-    function addChangeLog(
-        type: ChangeLogEntry['type'],
-        description: string,
-        agenda: Agenda
-    ) {
+    function addChangeLog(type: ChangeLogEntry['type'], description: string, agenda: Agenda) {
         changeLog.value.unshift({
             id: generateId(),
             timestamp: new Date(),
@@ -231,18 +204,15 @@ export function useTimekeeper() {
         const agenda = agendas.value.find(a => a.id === id)
         if (!agenda) return
 
-        // Stop any currently running agenda first
         const current = runningAgenda.value
         if (current && current.id !== id) {
             stopAgenda(current.id, false)
         }
 
-        // Start the new agenda
         agenda.status = 'running'
         agenda.actualStartTime = new Date()
         elapsedSeconds.value = 0
 
-        // Start timer
         if (timerInterval) clearInterval(timerInterval)
         timerInterval = setInterval(() => {
             elapsedSeconds.value++
@@ -255,18 +225,28 @@ export function useTimekeeper() {
         const agenda = agendas.value.find(a => a.id === id)
         if (!agenda) return
 
-        // Stop timer
         if (timerInterval) {
             clearInterval(timerInterval)
             timerInterval = null
         }
 
         agenda.actualEndTime = new Date()
-        agenda.actualDurationSeconds = elapsedSeconds.value // Save the final time
+        agenda.actualDurationSeconds = elapsedSeconds.value
 
         if (markDone) {
             agenda.status = 'done'
             addChangeLog('done', `Selesai pada ${formatTime(new Date())}`, agenda)
+
+            // Auto-select next agenda
+            const sorted = sortedAgendas.value
+            const currentIndex = sorted.findIndex(a => a.id === id)
+            if (currentIndex !== -1 && currentIndex < sorted.length - 1) {
+                // Find next non-cancelled agenda
+                const nextAgenda = sorted.slice(currentIndex + 1).find(a => a.status !== 'cancelled')
+                if (nextAgenda) {
+                    selectedAgendaId.value = nextAgenda.id
+                }
+            }
         }
 
         elapsedSeconds.value = 0
@@ -276,7 +256,6 @@ export function useTimekeeper() {
         const agenda = agendas.value.find(a => a.id === id)
         if (!agenda) return
 
-        // If running, stop timer
         if (agenda.status === 'running' && timerInterval) {
             clearInterval(timerInterval)
             timerInterval = null
@@ -286,7 +265,17 @@ export function useTimekeeper() {
         agenda.status = 'cancelled'
         addChangeLog('cancel', 'Dibatalkan', agenda)
 
-        // Auto-adjust subsequent agenda times
+        // Auto-select next agenda
+        const sorted = sortedAgendas.value
+        const currentIndex = sorted.findIndex(a => a.id === id)
+        if (currentIndex !== -1 && currentIndex < sorted.length - 1) {
+            // Find next waiting agenda
+            const nextAgenda = sorted.slice(currentIndex + 1).find(a => a.status === 'waiting')
+            if (nextAgenda) {
+                selectedAgendaId.value = nextAgenda.id
+            }
+        }
+
         recalculateStartTimes()
     }
 
@@ -295,12 +284,10 @@ export function useTimekeeper() {
         if (!agenda) return
 
         agenda.plannedDuration += minutes
-        if (agenda.plannedDuration < 5) agenda.plannedDuration = 5 // Minimum 5 minutes
+        if (agenda.plannedDuration < 5) agenda.plannedDuration = 5
 
         const action = minutes > 0 ? `+${minutes}` : `${minutes}`
         addChangeLog('adjust', `Durasi diubah ${action} menit`, agenda)
-
-        // Recalculate subsequent start times
         recalculateStartTimes()
     }
 
@@ -314,13 +301,10 @@ export function useTimekeeper() {
     function reorderAgendas(fromIndex: number, toIndex: number) {
         const sorted = sortedAgendas.value
         const [moved] = sorted.splice(fromIndex, 1)
-
-        // Guard against undefined (shouldn't happen in practice)
         if (!moved) return
 
         sorted.splice(toIndex, 0, moved)
 
-        // Update order values
         sorted.forEach((agenda, index) => {
             const original = agendas.value.find(a => a.id === agenda.id)
             if (original) original.order = index
@@ -334,7 +318,6 @@ export function useTimekeeper() {
         const sorted = sortedAgendas.value
         if (!sorted[0]) return
 
-        // Use the planned start time of the first agenda as the base for recalculation
         let currentTime = new Date(sorted[0].plannedStartTime)
 
         for (const agenda of sorted) {
@@ -352,7 +335,6 @@ export function useTimekeeper() {
         isChangeLogVisible.value = !isChangeLogVisible.value
     }
 
-    // ===== REMINDER MANAGEMENT =====
     function addReminder(agendaId: string, reminder: Omit<Reminder, 'id'>) {
         const agenda = agendas.value.find(a => a.id === agendaId)
         if (!agenda) return
@@ -385,31 +367,18 @@ export function useTimekeeper() {
         }
     }
 
-    // Cleanup on unmount
-    onUnmounted(() => {
-        if (timerInterval) {
-            clearInterval(timerInterval)
-        }
-    })
-
-    // ===== RETURN =====
     return {
-        // State
         eventName,
         agendas,
         selectedAgendaId,
         changeLog,
         isChangeLogVisible,
         elapsedSeconds,
-
-        // Computed
         selectedAgenda,
         runningAgenda,
         sortedAgendas,
         estimatedStartTimes,
         getEstimatedStartTime,
-
-        // Actions
         selectAgenda,
         startAgenda,
         stopAgenda,
@@ -422,4 +391,4 @@ export function useTimekeeper() {
         updateReminder,
         deleteReminder
     }
-}
+})

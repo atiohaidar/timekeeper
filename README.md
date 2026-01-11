@@ -1,75 +1,58 @@
-# Nuxt Minimal Starter
+# ⏱️ Timekeeper Dashboard
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+A beautiful, hand-drawn "Notebook Style" real-time event runner dashboard built with **Nuxt 4** and **Pinia**.
 
-## Setup
+## ✨ Features
 
-Make sure to install dependencies:
+- **📖 Notebook Aesthetic**: Authentic hand-drawn UI with line paper, sketchy buttons, and handwritten fonts.
+- **⏱️ Real-time Tracking**: Start, stop, and track agenda items with live timers.
+- **⚡ Dynamic Scheduling**: Automatically adjusts estimated start times for all remaining agendas based on current progress.
+- **📌 Smart Reminders**: Division-specific reminders tied to agenda timing (e.g., -5m for MC, +10m for Sound).
+- **🔄 Drag & Drop**: Easy reordering of agenda items in "Edit Mode".
+- **📔 Change Log**: Automated logging of all timing changes, cancellations, and reorders.
+- **🎯 Time Navigation**: Quick jump buttons to "Now", "Next", and "Previous" agendas.
+- **🔔 Interactive Toasts**: Beautiful notifications for all major actions.
+
+## 🚀 Tech Stack
+
+- **Framework**: [Nuxt 4](https://nuxt.com/) (Vue 3)
+- **State Management**: [Pinia](https://pinia.vuejs.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Icons**: Emoji & Custom CSS sketchy elements
+- **Fonts**: Google Fonts (Handlee, Patrick Hand, etc.)
+
+## 🛠️ Setup
+
+### Installation
 
 ```bash
-# npm
+# Install dependencies
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
 ```
 
-## Development Server
-
-Start the development server on `http://localhost:3000`:
+### Development
 
 ```bash
-# npm
+# Start development server
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
-
-Build the application for production:
+### Production
 
 ```bash
-# npm
+# Build for production
 npm run build
 
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
+# Preview production build
 npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+## 📐 Architecture
+
+- **Stores**: `app/stores/timekeeper.ts` - Centralized logic for agenda state, timer, and scheduling.
+- **Components**: Modularized sketchy components in `app/components/timekeeper/`.
+- **Layouts**: Custom notebook layout with margin and lines.
+
+## 📝 License
+
+MIT

@@ -5,7 +5,7 @@
   Positioned at absolute time.
 -->
 <script setup lang="ts">
-import type { Reminder } from '~/composables/useTimekeeper'
+import type { Reminder } from '~/stores/timekeeper'
 
 interface AbsoluteReminder extends Reminder {
   absoluteTime: Date

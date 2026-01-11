@@ -8,23 +8,24 @@
   - Top bar always visible with event info and clock
   - "LIVE EVENT MODE" indicator for visual urgency
   - Notebook paper background throughout
-  - ChangeLog panel toggleable from right edge
 -->
 <script setup lang="ts">
-import { useTimekeeper } from '~/composables/useTimekeeper'
+import { storeToRefs } from 'pinia'
+import { useTimekeeperStore } from '~/stores/timekeeper'
+import { useToast } from '~/composables/useToast'
 
-// Import composable
+const store = useTimekeeperStore()
 const {
   eventName,
   agendas,
-  selectedAgendaId,
   changeLog,
   isChangeLogVisible,
   elapsedSeconds,
-  selectedAgenda,
+  selectedAgenda: agenda,
   runningAgenda,
-  sortedAgendas,
-  estimatedStartTimes,
+} = storeToRefs(store)
+
+const {
   getEstimatedStartTime,
   selectAgenda,
   startAgenda,
@@ -37,7 +38,12 @@ const {
   addReminder,
   updateReminder,
   deleteReminder
-} = useTimekeeper()
+} = store
+
+const toast = useToast()
+
+// Loading state
+const isLoading = ref(true)
 
 // Real-time clock
 const currentTime = ref(new Date())
@@ -47,6 +53,11 @@ onMounted(() => {
   clockInterval = setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
+  
+  // Simulate initial data loading
+  setTimeout(() => {
+    isLoading.value = false
+  }, 500)
 })
 
 onUnmounted(() => {
@@ -71,6 +82,36 @@ const formattedDate = computed(() => {
   })
 })
 
+// Enhanced actions with toast notifications
+function handleStartAgenda(id: string) {
+  startAgenda(id)
+  const agenda = agendas.value.find(a => a.id === id)
+  if (agenda) {
+    toast.success(`Agenda "${agenda.title}" berhasil dimulai! 🎉`)
+  }
+}
+
+function handleStopAgenda(id: string) {
+  stopAgenda(id)
+  const agenda = agendas.value.find(a => a.id === id)
+  if (agenda) {
+    toast.success(`Agenda "${agenda.title}" selesai! ✅`)
+  }
+}
+
+function handleCancelAgenda(id: string) {
+  cancelAgenda(id)
+  const agenda = agendas.value.find(a => a.id === id)
+  if (agenda) {
+    toast.warning(`Agenda "${agenda.title}" dibatalkan`)
+  }
+}
+
+function handleAdjustTime(id: string, minutes: number) {
+  adjustTime(id, minutes)
+  toast.info(`Durasi disesuaikan ${minutes > 0 ? '+' : ''}${minutes} menit`)
+}
+
 // Page meta
 useHead({
   title: 'Timekeeper Dashboard'
@@ -79,6 +120,9 @@ useHead({
 
 <template>
   <div class="h-screen flex flex-col overflow-hidden bg-notebook-paper">
+    <!-- Toast Container -->
+    <TimekeeperToastContainer />
+
     <!-- Top Bar -->
     <header class="flex-shrink-0 bg-notebook-paper-dark border-b-2 border-notebook-lines px-4 py-3 md:px-6 md:py-4">
       <div class="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-0">
@@ -109,47 +153,39 @@ useHead({
           </p>
         </div>
       </div>
+
+   
     </header>
 
+    <!-- Loading State -->
+    <div v-if="isLoading" class="flex-1 flex overflow-hidden">
+      <aside class="w-full md:w-3/5 border-r-2 border-notebook-margin">
+        <TimekeeperLoadingSkeleton variant="agenda-list" :count="5" />
+      </aside>
+      <main class="w-full md:w-2/5">
+        <TimekeeperLoadingSkeleton variant="agenda-detail" />
+      </main>
+    </div>
+
     <!-- Main content: Split view -->
-    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
-      <!-- Left Panel: Timeline View (60% desktop, 50% mobile) -->
+    <div v-else class="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <!-- Left Panel: Timeline View -->
       <aside class="w-full md:w-3/5 h-1/2 md:h-auto border-b-2 md:border-b-0 md:border-r-2 border-notebook-margin overflow-hidden flex-shrink-0">
-        <TimekeeperTimelineView
-          :agendas="sortedAgendas"
-          :selected-id="selectedAgendaId"
-          :running-id="runningAgenda?.id ?? null"
-          :estimated-start-times="estimatedStartTimes"
-          @select="selectAgenda"
-          @reorder="reorderAgendas"
-          @adjust="adjustTime"
-        />
+        <TimekeeperTimelineView />
       </aside>
 
-      <!-- Right Panel: Agenda Detail (40% desktop, 50% mobile) -->
+      <!-- Right Panel: Agenda Detail -->
       <main class="w-full md:w-2/5 h-1/2 md:h-auto overflow-hidden">
         <TimekeeperAgendaDetail
-          :agenda="selectedAgenda"
-          :elapsed-seconds="elapsedSeconds"
-          :estimated-start-time="selectedAgenda ? getEstimatedStartTime(selectedAgenda.id) : null"
-          :running-agenda="runningAgenda"
-          @start="startAgenda"
-          @stop="stopAgenda"
-          @cancel="cancelAgenda"
-          @adjust="adjustTime"
-          @update-notes="updateNotes"
-          @add-reminder="addReminder"
-          @update-reminder="updateReminder"
-          @delete-reminder="deleteReminder"
+          @start="handleStartAgenda"
+          @stop="handleStopAgenda"
+          @cancel="handleCancelAgenda"
+          @adjust="handleAdjustTime"
         />
       </main>
     </div>
 
     <!-- Change Log Panel -->
-    <TimekeeperChangeLog
-      :entries="changeLog"
-      :is-visible="isChangeLogVisible"
-      @toggle="toggleChangeLog"
-    />
+    <TimekeeperChangeLog />
   </div>
 </template>
