@@ -132,6 +132,7 @@ useHead({
           :agenda="selectedAgenda"
           :elapsed-seconds="elapsedSeconds"
           :estimated-start-time="selectedAgenda ? getEstimatedStartTime(selectedAgenda.id) : null"
+          :running-agenda="runningAgenda"
           @start="startAgenda"
           @stop="stopAgenda"
           @cancel="cancelAgenda"

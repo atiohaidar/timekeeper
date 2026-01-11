@@ -73,7 +73,7 @@ useHead({
 </script>
 
 <template>
-  <div class="h-screen flex flex-col overflow-hidden bg-notebook-paper">
+  <div class="h-screen flex flex-col overflow-hidden notebook-paper-ruled">
     <!-- Top Bar -->
     <header class="flex-shrink-0 bg-notebook-paper-dark border-b-2 border-notebook-lines px-6 py-4">
       <div class="flex items-center justify-between">

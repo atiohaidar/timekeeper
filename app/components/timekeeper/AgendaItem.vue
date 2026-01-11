@@ -100,8 +100,9 @@ const estimatedEndTime = computed(() => {
       </div>
 
       <!-- Right: Status icon -->
-      <div class="flex-shrink-0 text-2xl" :title="agenda.status">
+      <div class="flex-shrink-0 text-2xl flex items-center gap-1" :title="agenda.status">
         {{ statusIcons[agenda.status] }}
+        <span v-if="agenda.status === 'done'" class="checkmark-hand"></span>
       </div>
     </div>
   </div>

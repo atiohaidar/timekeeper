@@ -19,6 +19,7 @@ const props = defineProps<{
   agenda: Agenda | null
   elapsedSeconds: number
   estimatedStartTime?: Date | null
+  runningAgenda?: Agenda | null
 }>()
 
 // Emits
@@ -161,6 +162,54 @@ function handleDeleteReminder(reminderId: string) {
   if (!props.agenda) return
   emit('deleteReminder', props.agenda.id, reminderId)
 }
+
+// ===== START CONFIRMATION =====
+const showStartConfirmation = ref(false)
+const pendingStartId = ref<string | null>(null)
+
+function handleStart() {
+  if (!props.agenda) return
+  
+  // Check if another agenda is running
+  if (props.runningAgenda && props.runningAgenda.id !== props.agenda.id) {
+    // Show confirmation modal
+    showStartConfirmation.value = true
+    pendingStartId.value = props.agenda.id
+  } else {
+    // No conflict, start directly
+    emit('start', props.agenda.id)
+  }
+}
+
+function confirmStart() {
+  if (pendingStartId.value) {
+    emit('start', pendingStartId.value)
+  }
+  showStartConfirmation.value = false
+  pendingStartId.value = null
+}
+
+function cancelStart() {
+  showStartConfirmation.value = false
+  pendingStartId.value = null
+}
+
+// ===== CUSTOM TIME ADJUSTMENT =====
+const customAdjustMinutes = ref(0)
+
+function incrementAdjust() {
+  customAdjustMinutes.value++
+}
+
+function decrementAdjust() {
+  customAdjustMinutes.value--
+}
+
+function applyCustomAdjust() {
+  if (!props.agenda || customAdjustMinutes.value === 0) return
+  emit('adjust', props.agenda.id, customAdjustMinutes.value)
+  customAdjustMinutes.value = 0
+}
 </script>
 
 <template>
@@ -176,16 +225,21 @@ function handleDeleteReminder(reminderId: string) {
 
     <!-- Agenda detail -->
     <template v-else>
-      <!-- Title -->
-      <div class="mb-6">
+      <!-- Title with highlight -->
+      <div class="mb-6 relative">
         <h1 
           :class="[
             'font-handwritten-alt text-4xl font-bold text-notebook-ink leading-tight',
             agenda.status === 'cancelled' && 'line-through opacity-60'
           ]"
         >
-          {{ agenda.title }}
+          <span class="text-highlight">{{ agenda.title }}</span>
         </h1>
+        
+        <!-- Grade Badge Decoration -->
+        <!-- <div v-if="agenda.status === 'done'" class="grade-badge">
+          A+
+        </div> -->
         
         <!-- Status badge -->
         <span 
@@ -206,14 +260,16 @@ function handleDeleteReminder(reminderId: string) {
         </span>
       </div>
 
-      <!-- Description (Sticky Note Style) -->
-      <div class="mb-8 mx-auto max-w-xl transform -rotate-1 hover:rotate-0 transition-transform duration-300">
-        <div class="bg-yellow-100 p-4 shadow-md border border-yellow-200">
-          <div class="w-8 h-3 bg-yellow-200/50 mx-auto -mt-6 mb-2"></div> <!-- Tape effect -->
-          <p class="font-handwritten text-lg text-notebook-ink leading-relaxed text-center">
-            "{{ agenda.description }}"
+      <!-- Description (Enhanced Sticky Note) -->
+      <div class="mb-8 mx-auto max-w-xl relative">
+        <div class="sticky-note">
+          <p class="font-handwritten text-lg text-notebook-ink leading-relaxed">
+            ✨ {{ agenda.description }}
           </p>
         </div>
+        
+        <!-- Pencil Decoration -->
+        <div class="pencil-decoration" style="bottom: -15px; right: -30px;"></div>
       </div>
 
       <!-- Info grid -->
@@ -297,7 +353,7 @@ function handleDeleteReminder(reminderId: string) {
         <button
           v-if="agenda.status === 'waiting'"
           class="btn-sketchy-large btn-sketchy-primary"
-          @click="emit('start', agenda.id)"
+          @click="handleStart"
         >
           ▶️ MULAI ACARA
         </button>
@@ -313,29 +369,62 @@ function handleDeleteReminder(reminderId: string) {
       </div>
 
       <!-- Secondary Actions (Adjustments) -->
-      <div v-if="agenda.status !== 'done' && agenda.status !== 'cancelled'" class="flex flex-wrap items-center justify-center gap-4 mb-6 pt-4 border-t border-dashed border-notebook-lines">
-        <span class="font-handwritten text-notebook-ink-light text-sm">Atur Waktu:</span>
-        <button
-          class="btn-sketchy text-sm py-1 px-3"
-          @click="emit('adjust', agenda.id, -5)"
-        >
-          -5 menit
-        </button>
-        <button
-          class="btn-sketchy text-sm py-1 px-3"
-          @click="emit('adjust', agenda.id, 5)"
-        >
-          +5 menit
-        </button>
-
-        <div class="w-px h-6 bg-notebook-lines mx-2"></div>
-
-        <button
-          class="btn-sketchy btn-sketchy-danger text-sm py-1 px-3"
-          @click="emit('cancel', agenda.id)"
-        >
-          ❌ Batalkan
-        </button>
+      <div v-if="agenda.status !== 'done' && agenda.status !== 'cancelled'" class="mb-6 pt-4 border-t border-dashed border-notebook-lines">
+        <p class="font-handwritten text-notebook-ink-light text-sm mb-3 text-center">⏱️ Atur Waktu Durasi</p>
+        
+        <div class="flex items-center justify-center gap-3 mb-4">
+          <!-- Decrement Button -->
+          <button
+            class="btn-sketchy w-10 h-10 text-lg font-bold flex items-center justify-center"
+            @click="decrementAdjust"
+            title="Kurangi 1 menit"
+          >
+            −
+          </button>
+          
+          <!-- Custom Input -->
+          <div class="flex items-center gap-2">
+            <input
+              v-model.number="customAdjustMinutes"
+              type="number"
+              class="w-20 px-3 py-2 text-center border-2 border-notebook-ink rounded font-typewriter text-lg font-bold"
+              placeholder="0"
+            />
+            <span class="font-handwritten text-sm text-notebook-ink-light">menit</span>
+          </div>
+          
+          <!-- Increment Button -->
+          <button
+            class="btn-sketchy w-10 h-10 text-lg font-bold flex items-center justify-center"
+            @click="incrementAdjust"
+            title="Tambah 1 menit"
+          >
+            +
+          </button>
+        </div>
+        
+        <!-- Apply Button -->
+        <div class="flex justify-center gap-2">
+          <button
+            class="btn-sketchy btn-sketchy-primary text-sm py-2 px-6"
+            :disabled="customAdjustMinutes === 0"
+            @click="applyCustomAdjust"
+          >
+            ✓ Terapkan
+          </button>
+        </div>
+        
+        <div class="border-t border-dashed border-notebook-lines my-4"></div>
+        
+        <!-- Cancel Button -->
+        <div class="flex justify-center">
+          <button
+            class="btn-sketchy btn-sketchy-danger text-sm py-1 px-3"
+            @click="emit('cancel', agenda.id)"
+          >
+            ❌ Batalkan Agenda
+          </button>
+        </div>
       </div>
 
       <!-- Reminder Management Section -->
@@ -460,5 +549,42 @@ function handleDeleteReminder(reminderId: string) {
         ></textarea>
       </div>
     </template>
+
+    <!-- Confirmation Modal -->
+    <div
+      v-if="showStartConfirmation"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      @click.self="cancelStart"
+    >
+      <div class="bg-notebook-paper border-4 border-notebook-ink rounded-lg p-6 max-w-md mx-4 shadow-2xl">
+        <h3 class="font-handwritten-alt text-2xl font-bold text-notebook-ink mb-4">
+          ⚠️ Konfirmasi
+        </h3>
+        
+        <div class="mb-6 space-y-3">
+          <p class="font-handwritten text-lg text-notebook-ink">
+            Agenda <span class="font-bold text-pen-red">"{{ runningAgenda?.title }}"</span> sedang berjalan.
+          </p>
+          <p class="font-handwritten text-notebook-ink">
+            Apakah kamu yakin ingin menghentikannya dan memulai agenda <span class="font-bold">"{{ agenda?.title }}"</span>?
+          </p>
+        </div>
+
+        <div class="flex gap-3">
+          <button
+            class="btn-sketchy btn-sketchy-danger flex-1 py-2"
+            @click="confirmStart"
+          >
+            Ya, Lanjutkan
+          </button>
+          <button
+            class="btn-sketchy flex-1 py-2"
+            @click="cancelStart"
+          >
+            Batal
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

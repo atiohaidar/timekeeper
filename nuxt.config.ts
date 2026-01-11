@@ -31,6 +31,12 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxtjs/tailwindcss'
   ],
+
+  // Import global CSS
+  css: [
+    '~/assets/css/notebook.css'
+  ],
+
   pinia: {
     storesDirs: ['./stores/**']
   }

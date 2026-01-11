@@ -1,7 +1,4 @@
 {
-  "name": "timekeeper",
-  "type": "module",
-  "private": true,
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -9,23 +6,6 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
-  },
-  "dependencies": {
-    "@pinia/nuxt": "^0.11.3",
-    "nuxt": "^4.2.2",
-    "pinia": "^3.0.4",
-    "vue": "^3.5.26",
-    "vue-router": "^4.6.4"
-  },
-  "devDependencies": {
-    "@nuxtjs/tailwindcss": "^6.14.0",
-    "@playwright/test": "^1.57.0",
-    "@vue/test-utils": "^2.4.6",
-    "jsdom": "^27.4.0",
-    "tailwindcss": "^3.4.19",
-    "vitest": "^4.0.16"
+    "test:ui": "vitest --ui"
   }
 }

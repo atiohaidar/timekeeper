@@ -10,7 +10,7 @@
 
 /* ===== BASE NOTEBOOK PAPER ===== */
 .notebook-paper {
-  background-color: #fdf8e8;
+  background-color: #ffffff;
   background-image:
     /* Red margin line */
     linear-gradient(90deg, transparent 58px, #e88b8b 58px, #e88b8b 60px, transparent 60px),
@@ -24,7 +24,7 @@
 
 /* Variant without margin line */
 .notebook-paper-simple {
-  background-color: #fdf8e8;
+  background-color: #ffffff;
   background-image:
     repeating-linear-gradient(transparent,
       transparent 27px,
@@ -240,7 +240,7 @@
 
 /* ===== CHANGE LOG PANEL ===== */
 .changelog-panel {
-  background-color: #fdf8e8;
+  background-color: #ffffff;
   border-left: 4px solid #e88b8b;
   font-family: 'Patrick Hand', cursive;
 }
@@ -437,7 +437,7 @@
 
 /* ===== ENHANCED RULED PAPER ===== */
 .notebook-paper-ruled {
-  background-color: #fdfbf7;
+  background-color: #ffffff;
   background-image:
     /* Red margin line */
     linear-gradient(90deg, transparent 58px, #e88b8b 58px, #e88b8b 60px, transparent 60px),

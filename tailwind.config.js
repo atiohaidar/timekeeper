@@ -13,8 +13,8 @@ export default {
       colors: {
         // Notebook paper colors
         'notebook': {
-          'paper': '#fdf8e8',      // Soft beige/off-white
-          'paper-dark': '#f5edd6', // Slightly darker for hover
+          'paper': '#ffffff',      // Pure white paper
+          'paper-dark': '#f8f9fa', // Very light gray for hover
           'lines': '#a8d4f0',      // Blue horizontal lines
           'margin': '#e88b8b',     // Red margin line
           'ink': '#2c3e50',        // Dark ink for text

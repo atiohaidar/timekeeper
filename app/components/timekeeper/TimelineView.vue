@@ -123,7 +123,9 @@ onUnmounted(() => {
 function getTopPosition(date: Date): number {
   const hours = date.getHours()
   const minutes = date.getMinutes()
-  const totalMinutes = (hours - startHour.value) * 60 + minutes
+  const seconds = date.getSeconds()
+  // Include seconds for precise positioning (convert to fractional minutes)
+  const totalMinutes = (hours - startHour.value) * 60 + minutes + (seconds / 60)
   return totalMinutes * pixelsPerMinute.value
 }
 
@@ -316,17 +318,29 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
           :style="{ top: `${nowIndicatorTop}px` }"
         >
           <div class="flex items-center">
-            <!-- Pulsing Dot -->
+            <!-- Pulsing Dot - Dynamic Color -->
             <div class="relative flex items-center justify-center -ml-1.5">
-              <div class="absolute w-4 h-4 bg-red-500 rounded-full animate-ping opacity-75"></div>
-              <div class="relative w-3 h-3 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
+              <div 
+                class="absolute w-4 h-4 rounded-full animate-ping opacity-75"
+                :class="runningId ? 'bg-red-500' : 'bg-green-500'"
+              ></div>
+              <div 
+                class="relative w-3 h-3 rounded-full"
+                :class="runningId ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]'"
+              ></div>
             </div>
             
-            <!-- Red Line with Shadow -->
-            <div class="flex-1 h-0.5 bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]"></div>
+            <!-- Line with Shadow - Dynamic Color -->
+            <div 
+              class="flex-1 h-0.5"
+              :class="runningId ? 'bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]' : 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]'"
+            ></div>
 
-            <!-- Current Time Label -->
-            <div class="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded ml-1 shadow-sm font-typewriter">
+            <!-- Current Time Label - Dynamic Color -->
+            <div 
+              class="text-white text-[10px] font-bold px-1.5 py-0.5 rounded ml-1 shadow-sm font-typewriter"
+              :class="runningId ? 'bg-red-500' : 'bg-green-500'"
+            >
               {{ currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }}
             </div>
           </div>
