@@ -1,5 +1,5 @@
 <!--
-  index.vue (formerly dashboard.vue)
+  dashboard.vue
   
   Main Timekeeper Dashboard page.
   Split view: Left (40%) agenda list, Right (60%) detail panel.
@@ -24,8 +24,6 @@ const {
   selectedAgenda,
   runningAgenda,
   sortedAgendas,
-  estimatedStartTimes,
-  getEstimatedStartTime,
   selectAgenda,
   startAgenda,
   stopAgenda,
@@ -77,11 +75,11 @@ useHead({
 <template>
   <div class="h-screen flex flex-col overflow-hidden bg-notebook-paper">
     <!-- Top Bar -->
-    <header class="flex-shrink-0 bg-notebook-paper-dark border-b-2 border-notebook-lines px-4 py-3 md:px-6 md:py-4">
-      <div class="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-0">
+    <header class="flex-shrink-0 bg-notebook-paper-dark border-b-2 border-notebook-lines px-6 py-4">
+      <div class="flex items-center justify-between">
         <!-- Left: Event name -->
-        <div class="flex-1 text-center md:text-left w-full md:w-auto">
-          <h1 class="font-handwritten-alt text-xl md:text-2xl font-bold text-notebook-ink">
+        <div class="flex-1">
+          <h1 class="font-handwritten-alt text-2xl font-bold text-notebook-ink">
             📅 {{ eventName }}
           </h1>
           <p class="font-handwritten text-sm text-notebook-ink-light">
@@ -90,7 +88,7 @@ useHead({
         </div>
 
         <!-- Center: Live indicator -->
-        <div class="flex-shrink-0 my-2 md:my-0 md:mx-4">
+        <div class="flex-shrink-0 mx-4">
           <div v-if="runningAgenda" class="live-indicator">
             LIVE EVENT MODE
           </div>
@@ -100,8 +98,8 @@ useHead({
         </div>
 
         <!-- Right: Clock -->
-        <div class="flex-shrink-0 text-center md:text-right w-full md:w-auto">
-          <p class="font-typewriter text-3xl md:text-4xl font-bold text-notebook-ink tracking-widest">
+        <div class="flex-shrink-0 text-right">
+          <p class="font-handwritten-alt text-4xl font-bold text-notebook-ink">
             {{ formattedTime }}
           </p>
         </div>
@@ -109,24 +107,23 @@ useHead({
     </header>
 
     <!-- Main content: Split view -->
-    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
-      <!-- Left Panel: Timeline View (60% desktop, 50% mobile) -->
-      <aside class="w-full md:w-3/5 h-1/2 md:h-auto border-b-2 md:border-b-0 md:border-r-2 border-notebook-margin overflow-hidden flex-shrink-0">
-        <TimekeeperTimelineView
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Left Panel: Agenda List (40%) -->
+      <aside class="w-2/5 border-r-2 border-notebook-margin overflow-hidden">
+        <TimekeeperAgendaList
           :agendas="sortedAgendas"
           :selected-id="selectedAgendaId"
           :running-id="runningAgenda?.id ?? null"
-          :estimated-start-times="estimatedStartTimes"
           @select="selectAgenda"
+          @reorder="reorderAgendas"
         />
       </aside>
 
-      <!-- Right Panel: Agenda Detail (40% desktop, 50% mobile) -->
-      <main class="w-full md:w-2/5 h-1/2 md:h-auto overflow-hidden">
+      <!-- Right Panel: Agenda Detail (60%) -->
+      <main class="w-3/5 overflow-hidden">
         <TimekeeperAgendaDetail
           :agenda="selectedAgenda"
           :elapsed-seconds="elapsedSeconds"
-          :estimated-start-time="selectedAgenda ? getEstimatedStartTime(selectedAgenda.id) : null"
           @start="startAgenda"
           @stop="stopAgenda"
           @cancel="cancelAgenda"
