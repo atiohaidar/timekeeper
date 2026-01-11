@@ -25,6 +25,7 @@ const {
   selectedAgendaId,
   changeLog,
   isChangeLogVisible,
+  isEditMode,
   elapsedSeconds,
   selectedAgenda,
   runningAgenda,
@@ -75,7 +76,7 @@ function handleKeydown(e: KeyboardEvent) {
 // Drag State
 const draggedId = ref<string | null>(null)
 const dragOverId = ref<string | null>(null)
-const isEditMode = ref(false)
+// removing local isEditMode
 
 function handleDragStart(id: string) {
   if (!isEditMode.value) return 
@@ -93,8 +94,8 @@ function handleDragOver(id: string) {
 
 function handleDrop(toId: string) {
   if (draggedId.value && draggedId.value !== toId) {
-    const fromIndex = sortedAgendas.value.findIndex(a => a.id === draggedId.value)
-    const toIndex = sortedAgendas.value.findIndex(a => a.id === toId)
+    const fromIndex = sortedAgendas.value.findIndex((a: Agenda) => a.id === draggedId.value)
+    const toIndex = sortedAgendas.value.findIndex((a: Agenda) => a.id === toId)
     
     if (fromIndex !== -1 && toIndex !== -1) {
       reorderAgendas(fromIndex, toIndex)
@@ -113,18 +114,19 @@ function handleAdjustTime(id: string, minutes: number) {
 // Emits
 const emit = defineEmits<{
   select: [id: string]
+  add: [id?: string]
 }>()
 
 // Timeline configuration - calculate from agenda data
 const startHour = computed(() => {
   if (sortedAgendas.value.length === 0) return 8
-  const minTime = Math.min(...sortedAgendas.value.map(a => a.plannedStartTime.getHours()))
+  const minTime = Math.min(...sortedAgendas.value.map((a: Agenda) => a.plannedStartTime.getHours()))
   return Math.max(0, minTime - 1) // 1 hour padding before first event
 })
 
 const endHour = computed(() => {
   if (sortedAgendas.value.length === 0) return 22
-  const maxEndTime = Math.max(...sortedAgendas.value.map(a => {
+  const maxEndTime = Math.max(...sortedAgendas.value.map((a: Agenda) => {
     const endTime = new Date(a.plannedStartTime.getTime() + a.plannedDuration * 60 * 1000)
     return endTime.getHours() + (endTime.getMinutes() > 0 ? 1 : 0)
   }))
@@ -136,7 +138,7 @@ const totalHours = computed(() => endHour.value - startHour.value)
 // Dynamic scale: Adjust pixelsPerMinute so the shortest item is at least 60px high
 const pixelsPerMinute = computed(() => {
   if (sortedAgendas.value.length === 0) return 4
-  const minDuration = Math.min(...sortedAgendas.value.map(a => a.plannedDuration))
+  const minDuration = Math.min(...sortedAgendas.value.map((a: Agenda) => a.plannedDuration))
   // Target 60px for the shortest item, but keep scale between 2 and 12
   const scaled = Math.round(60 / Math.max(1, minDuration))
   return Math.max(2, Math.min(12, scaled))
@@ -204,6 +206,20 @@ onUnmounted(() => {
 })
 
 
+// Calculate height for a given duration
+function getHeight(durationMinutes: number): number {
+  return durationMinutes * pixelsPerMinute.value
+}
+
+function getEventHeight(agenda: Agenda): number {
+  if (agenda.status === 'done' && agenda.actualDurationSeconds) {
+    // If finished, use actual duration (minimum 2 minutes visually)
+    const actualMinutes = agenda.actualDurationSeconds / 60
+    return getHeight(Math.max(2, actualMinutes))
+  }
+  return getHeight(agenda.plannedDuration)
+}
+
 // Calculate top position for a given time
 function getTopPosition(date: Date): number {
   const hours = date.getHours()
@@ -214,10 +230,7 @@ function getTopPosition(date: Date): number {
   return totalMinutes * pixelsPerMinute.value
 }
 
-// Calculate height for a given duration
-function getHeight(durationMinutes: number): number {
-  return durationMinutes * pixelsPerMinute.value
-}
+
 
 // Now indicator position
 const nowIndicatorTop = computed(() => {
@@ -329,14 +342,14 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
           SEKARANG
         </button>
       </div>
-        <!-- Time Jump Navigation -->
-      <div class="mt-3 flex justify-center mx-4">
+      <!-- ini munculnya kalau mode view aja -->
+      <div class="mt-3 flex justify-center mx-4" v-if="!isEditMode">
         <TimekeeperTimeJumpNav
           @select-agenda="selectAgenda"
         />
       </div>
       
-      <!-- Edit Mode Toggle -->
+      <!-- Edit Mode Toggle & Add Button -->
       <div class="flex items-center gap-2">
          <!-- Undo/Redo Controls -->
         <div class="flex items-center bg-notebook-paper-dark border border-notebook-lines rounded-lg px-2 py-1 mr-2" v-if="isEditMode">
@@ -366,6 +379,15 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
             🗑️
           </button>
         </div>
+
+        <!-- Add Button -->
+        <button 
+          v-if="isEditMode"
+          class="btn-sketchy btn-sketchy-primary text-xs py-1 px-3 flex items-center gap-2"
+          @click="emit('add', selectedAgendaId || undefined)"
+        >
+          ➕ TAMBAH
+        </button>
 
         <button 
           class="btn-sketchy text-xs py-1 px-3 flex items-center gap-2"
@@ -425,7 +447,7 @@ const timelineHeight = computed(() => totalHours.value * 60 * pixelsPerMinute.va
             'transition-all duration-300'
           ]"
           :top="getTopPosition(estimatedStartTimes.get(agenda.id) ?? agenda.plannedStartTime)"
-          :height="getHeight(agenda.plannedDuration)"
+          :height="getEventHeight(agenda)"
           :estimated-start-time="estimatedStartTimes.get(agenda.id) ?? null"
           @select="selectAgenda"
           @drag-start="handleDragStart"

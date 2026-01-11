@@ -25,6 +25,7 @@ const {
   selectedAgenda: agenda,
   elapsedSeconds,
   runningAgenda,
+  isEditMode
 } = storeToRefs(store)
 
 const {
@@ -50,6 +51,8 @@ const emit = defineEmits<{
   addReminder: [agendaId: string, reminder: { offsetMinutes: number, division: string, message: string, icon?: string }]
   updateReminder: [agendaId: string, reminderId: string, updates: { offsetMinutes?: number, division?: string, message?: string, icon?: string }]
   deleteReminder: [agendaId: string, reminderId: string]
+  edit: [id: string]
+  addAfter: [id: string]
 }>()
 
 // Timer logic moved to AgendaTimer.vue
@@ -205,6 +208,29 @@ function decrementAdjust() {
   customAdjustMinutes.value--
 }
 
+// ===== DELETE CONFIRMATION =====
+const showDeleteConfirmation = ref(false)
+
+function handleDelete() {
+  if (!agenda.value) return
+  showDeleteConfirmation.value = true
+}
+
+function confirmDelete() {
+  if (agenda.value) {
+    const id = agenda.value.id
+    store.deleteAgenda(id)
+    toast.success('Agenda berhasil dihapus')
+  }
+  showDeleteConfirmation.value = false
+}
+
+function openAddModalAfter() {
+  if (agenda.value) {
+    emit('addAfter', agenda.value.id)
+  }
+}
+
 function applyCustomAdjust() {
   if (!agenda.value || customAdjustMinutes.value === 0) return
   
@@ -267,6 +293,25 @@ function applyCustomAdjust() {
         </span>
       </div>
 
+      <!-- Management Actions (Edit Mode - Top Position) -->
+      <div v-if="isEditMode" class="mb-4 flex flex-wrap gap-2 items-center">
+         <button 
+           class="btn-sketchy text-xs py-1 px-3 flex items-center gap-1.5 hover:-translate-y-0.5 transition-transform"
+           @click="emit('edit', agenda.id)"
+           title="Edit detail agenda ini"
+         >
+           ✏️ Edit Detail
+         </button>
+         <div class="flex-1"></div>
+         <button 
+           class="btn-sketchy btn-sketchy-danger text-xs py-1 px-3 flex items-center gap-1.5 hover:-translate-y-0.5 transition-transform"
+           @click="handleDelete"
+           title="Hapus agenda ini"
+         >
+           🗑️ Hapus
+         </button>
+      </div>
+
       <!-- Description (Enhanced Sticky Note) -->
       <div class="mb-8 mx-auto max-w-xl relative">
         <div class="sticky-note">
@@ -275,8 +320,25 @@ function applyCustomAdjust() {
           </p>
         </div>
         
-        <!-- Pencil Decoration -->
-        <div class="pencil-decoration" style="bottom: -15px; right: -30px;"></div>
+        <!-- Idea Bulb Decoration (SVG) -->
+        <div class="absolute bottom-[-15px] right-[-30px] w-[50px] h-[50px] opacity-80" title="Idea!">
+          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full transform hover:scale-110 transition-transform duration-300">
+             <!-- Bulb outline -->
+             <path d="M50 85C50 85 30 80 25 55C20 30 40 10 50 10C60 10 80 30 75 55C70 80 50 85 50 85Z" stroke="#2c3e50" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="#fff9c4"/>
+             <!-- Filament -->
+             <path d="M40 55C40 55 45 45 50 55C55 45 60 55 60 55" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+             <!-- Base screw -->
+             <path d="M40 85L40 95L60 95L60 85" stroke="#2c3e50" stroke-width="3" fill="#94a3b8"/>
+             <line x1="40" y1="88" x2="60" y2="88" stroke="#2c3e50" stroke-width="2"/>
+             <line x1="40" y1="92" x2="60" y2="92" stroke="#2c3e50" stroke-width="2"/>
+             <!-- Rays (Glow) -->
+             <line x1="15" y1="50" x2="5" y2="50" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+             <line x1="85" y1="50" x2="95" y2="50" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+             <line x1="20" y1="25" x2="12" y2="18" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+             <line x1="80" y1="25" x2="88" y2="18" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+             <line x1="50" y1="5" x2="50" y2="1" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
       </div>
 
       <!-- Info grid -->
@@ -399,6 +461,7 @@ function applyCustomAdjust() {
         </div>
       </div>
 
+
       <TimekeeperAgendaReminders 
         :agenda-id="agenda.id"
         :reminders="agenda.reminders"
@@ -451,6 +514,17 @@ function applyCustomAdjust() {
       type="success"
       @confirm="confirmStop"
       @cancel="cancelStop"
+    />
+    <!-- Delete Confirmation Modal -->
+    <TimekeeperConfirmationModal
+      :is-visible="showDeleteConfirmation"
+      title="Hapus Agenda?"
+      message="Apakah kamu yakin ingin menghapus agenda ini secara permanen? Tindakan ini tidak dapat dibatalkan."
+      confirm-text="Ya, Hapus"
+      cancel-text="Batal"
+      type="danger"
+      @confirm="confirmDelete"
+      @cancel="showDeleteConfirmation = false"
     />
   </div>
 </template>

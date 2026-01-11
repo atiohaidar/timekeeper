@@ -13,6 +13,9 @@
 import { storeToRefs } from 'pinia'
 import { useTimekeeperStore } from '~/stores/timekeeper'
 import { useToast } from '~/composables/useToast'
+import type { Agenda } from '~/types'
+
+
 
 const store = useTimekeeperStore()
 const {
@@ -53,6 +56,38 @@ const isImportVisible = ref(false)
 const isMenuOpen = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
 
+// Add/Edit Modal State
+const isEditModalVisible = ref(false)
+const editTargetId = ref<string | null>(null)
+const insertAfterTargetId = ref<string | null>(null)
+
+function openAddModal(insertAfterId?: string) {
+  editTargetId.value = null
+  insertAfterTargetId.value = insertAfterId || null
+  isEditModalVisible.value = true
+}
+
+function openEditModal(id: string) {
+  editTargetId.value = id
+  insertAfterTargetId.value = null
+  isEditModalVisible.value = true
+}
+
+// Event Name Editing
+const isEditingEventName = ref(false)
+const eventNameInput = ref<HTMLInputElement | null>(null)
+
+function startEditingEventName() {
+  isEditingEventName.value = true
+  nextTick(() => {
+    eventNameInput.value?.focus()
+  })
+}
+
+function stopEditingEventName() {
+  isEditingEventName.value = false
+}
+
 // Click outside to close menu
 onMounted(() => {
   document.addEventListener('click', (e) => {
@@ -65,6 +100,29 @@ onMounted(() => {
 // Real-time clock
 const currentTime = ref(new Date())
 let clockInterval: ReturnType<typeof setInterval> | null = null
+
+const startHour = computed(() => {
+  if (agendas.value.length === 0) return 8
+  const minTime = Math.min(...agendas.value.map((a: Agenda) => a.plannedStartTime.getHours()))
+  return Math.max(0, minTime - 1)
+})
+
+const endHour = computed(() => {
+  if (agendas.value.length === 0) return 22
+  const maxEndTime = Math.max(...agendas.value.map((a: Agenda) => {
+    const endTime = new Date(a.plannedStartTime.getTime() + a.plannedDuration * 60 * 1000)
+    return endTime.getHours() + (endTime.getMinutes() > 0 ? 1 : 0)
+  }))
+  return Math.min(24, maxEndTime + 1)
+})
+
+const pixelsPerMinute = computed(() => {
+  if (agendas.value.length === 0) return 4
+  const minDuration = Math.min(...agendas.value.map((a: Agenda) => a.plannedDuration))
+  const scaled = Math.round(60 / Math.max(1, minDuration))
+  return Math.max(2, Math.min(12, scaled))
+})
+// ... (rest of the file remains similar, but need to implement the template change next)
 
 onMounted(() => {
   clockInterval = setInterval(() => {
@@ -147,9 +205,21 @@ useHead({
       <div class="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-0">
         <!-- Left: Event name -->
         <div class="flex-1 text-center md:text-left w-full md:w-auto">
-          <h1 class="font-handwritten-alt text-xl md:text-2xl font-bold text-notebook-ink">
-            📅 {{ eventName }}
-          </h1>
+          <div v-if="isEditingEventName" class="flex items-center gap-2">
+              <input 
+                  v-model="eventName" 
+                  class="font-handwritten-alt text-xl md:text-2xl font-bold text-notebook-ink bg-transparent border-b border-notebook-ink/50 focus:outline-none w-full"
+                  @blur="stopEditingEventName"
+                  @keyup.enter="stopEditingEventName"
+                  ref="eventNameInput"
+              />
+          </div>
+          <div v-else class="flex items-center justify-center md:justify-start gap-2 group cursor-pointer" @click="startEditingEventName">
+              <h1 class="font-handwritten-alt text-xl md:text-2xl font-bold text-notebook-ink border-b border-transparent group-hover:border-notebook-ink/20 transition-colors">
+                📅 {{ eventName }}
+              </h1>
+              <span class="opacity-0 group-hover:opacity-100 transition-opacity text-notebook-ink/50 text-sm">✏️</span>
+          </div>
           <p class="font-handwritten text-sm text-notebook-ink-light">
             {{ formattedDate }}
           </p>
@@ -231,7 +301,7 @@ useHead({
     <div v-else class="flex-1 flex flex-col md:flex-row overflow-hidden">
       <!-- Left Panel: Timeline View -->
       <aside class="w-full md:w-3/5 h-1/2 md:h-auto border-b-2 md:border-b-0 md:border-r-2 border-notebook-margin overflow-hidden flex-shrink-0">
-        <TimekeeperTimelineView />
+        <TimekeeperTimelineView @add="openAddModal($event)" />
       </aside>
 
       <!-- Right Panel: Agenda Detail -->
@@ -241,6 +311,8 @@ useHead({
           @stop="handleStopAgenda"
           @cancel="handleCancelAgenda"
           @adjust="handleAdjustTime"
+          @edit="openEditModal"
+          @add-after="openAddModal"
         />
       </main>
     </div>
@@ -252,6 +324,14 @@ useHead({
     <TimekeeperImportAgendasModal 
       :is-visible="isImportVisible"
       @close="isImportVisible = false"
+    />
+
+    <TimekeeperAddEditAgendaModal
+      :is-visible="isEditModalVisible"
+      :agenda-id="editTargetId"
+      :insert-after-id="insertAfterTargetId"
+      @close="isEditModalVisible = false"
+      @saved="isEditModalVisible = false"
     />
   </div>
 </template>

@@ -84,8 +84,9 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
     const selectedAgendaId = ref<string | null>(agendas.value[0]?.id ?? null)
     const changeLog = ref<ChangeLogEntry[]>([])
     const isChangeLogVisible = ref(false)
+    const isEditMode = ref(false)
 
-    // Timer state
+    // Persistent storage keys
     let timerInterval: ReturnType<typeof setInterval> | null = null
     const elapsedSeconds = ref(0)
 
@@ -460,6 +461,75 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         }
     }
 
+    function addAgenda(data: Partial<Agenda>, insertAfterId?: string) {
+        snapshot()
+        const id = Math.random().toString(36).substring(2, 9)
+        const sorted = sortedAgendas.value
+
+        let newOrder = sorted.length
+        let startTime = new Date()
+
+        if (insertAfterId) {
+            const index = sorted.findIndex(a => a.id === insertAfterId)
+            if (index !== -1) {
+                newOrder = index + 1
+                // Shift existing orders
+                agendas.value.forEach(a => {
+                    if (a.order >= newOrder) a.order++
+                })
+            }
+        } else if (sorted.length === 0 && data.plannedStartTime) {
+            startTime = new Date(data.plannedStartTime)
+        }
+
+        const newAgenda: Agenda = {
+            id,
+            title: data.title || 'Agenda Baru',
+            pic: data.pic || '-',
+            plannedStartTime: startTime,
+            plannedDuration: data.plannedDuration || 15,
+            actualStartTime: null,
+            actualEndTime: null,
+            status: 'waiting',
+            description: data.description || '',
+            notes: '',
+            order: newOrder,
+            reminders: []
+        }
+
+        agendas.value.push(newAgenda)
+        recalculateStartTimes()
+        saveToStorage()
+        return id
+    }
+
+    function updateAgenda(id: string, updates: Partial<Agenda>) {
+        snapshot()
+        const agenda = agendas.value.find(a => a.id === id)
+        if (agenda) {
+            Object.assign(agenda, updates)
+            recalculateStartTimes()
+            saveToStorage()
+        }
+    }
+
+    function deleteAgenda(id: string) {
+        snapshot()
+        const index = agendas.value.findIndex(a => a.id === id)
+        if (index !== -1) {
+            const deleted = agendas.value.splice(index, 1)[0]
+            // Re-normalize orders
+            sortedAgendas.value.forEach((a, i) => {
+                a.order = i
+            })
+            if (selectedAgendaId.value === id) {
+                selectedAgendaId.value = null
+            }
+            recalculateStartTimes()
+            saveToStorage()
+        }
+    }
+
     function reorderAgendas(fromIndex: number, toIndex: number) {
         snapshot()
         const sorted = sortedAgendas.value
@@ -539,6 +609,7 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         selectedAgendaId,
         changeLog,
         isChangeLogVisible,
+        isEditMode,
         elapsedSeconds,
         selectedAgenda,
         runningAgenda,
@@ -563,6 +634,9 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         resetData,
         importAgendas,
         downloadReport,
-        exportCurrentAgendas
+        exportCurrentAgendas,
+        addAgenda,
+        updateAgenda,
+        deleteAgenda
     }
 })
