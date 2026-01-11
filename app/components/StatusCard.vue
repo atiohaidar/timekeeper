@@ -3,35 +3,25 @@ defineProps<{
   title: string
   value: string | number
   color?: string
+  icon?: string
 }>()
 </script>
 
 <template>
-  <div class="card" :style="{ borderLeft: `5px solid ${color || '#42b883'}` }">
-    <h4 class="card-title">{{ title }}</h4>
-    <p class="card-value">{{ value }}</p>
+  <div class="bg-white rounded-lg shadow-md p-6 border-l-4 hover:shadow-lg transition-shadow duration-300"
+       :class="`border-l-${color || 'green-500'}`">
+    <div class="flex items-center justify-between">
+      <div>
+        <h4 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
+          {{ title }}
+        </h4>
+        <p class="text-2xl font-bold text-gray-900">
+          {{ value }}
+        </p>
+      </div>
+      <div v-if="icon" class="text-3xl text-gray-400">
+        <i :class="icon"></i>
+      </div>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.card {
-  background: white;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  margin: 10px 0;
-  text-align: left;
-}
-.card-title {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #666;
-  text-transform: uppercase;
-}
-.card-value {
-  margin: 5px 0 0;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #333;
-}
-</style>

@@ -24,176 +24,153 @@ const { seconds, isActive, start, pause, reset } = useTimer()
 </script>
 
 <template>
-  <div class="main-container">
-    <h1>🚀 Selamat Datang di Timekeeper</h1>
-    
-    <!-- Bagian Timer Baru -->
-    <div class="timer-section">
-      <div class="timer-display">{{ seconds }} Detik</div>
-      <div class="timer-controls">
-        <button v-if="!isActive" @click="start" class="btn-start">▶️ Mulai</button>
-        <button v-else @click="pause" class="btn-pause">⏸️ Jeda</button>
-        <button @click="reset" class="btn-reset">⏹️ Reset</button>
-      </div>
-    </div>
-    <p>Ini adalah halaman pertama kamu menggunakan struktur <strong>Nuxt 4</strong>.</p>
-    
-    <div class="info-box">
-      <h3>Statistik dari API Server:</h3>
-      
-      <!-- Pengecekan ekstra: apiResponse?.data -->
-      <div v-if="apiResponse?.data" class="stats-grid">
-        <StatusCard title="Uptime" :value="apiResponse.data.uptime" color="#1976d2" />
-        <StatusCard title="User Aktif" :value="apiResponse.data.usersActive" color="#42b883" />
-        <StatusCard title="Waktu Server" :value="apiResponse.data.serverTime" color="#fbc02d" />
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+    <div class="max-w-4xl mx-auto">
+      <!-- Header -->
+      <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+          🚀 Timekeeper App
+        </h1>
+        <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+          Aplikasi modern dengan Nuxt 4, Vue 3, dan Tailwind CSS
+        </p>
       </div>
 
-      <!-- State Loading: Jika apiResponse masih null -->
-      <div v-else-if="apiResponse === null" class="loading-state">
-        ⏳ Sedang memuat data server...
+      <!-- Timer Section -->
+      <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
+        <div class="text-center">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-6">⏱️ Timer</h2>
+          <div class="text-6xl md:text-7xl font-bold text-indigo-600 mb-8 font-mono">
+            {{ seconds }}
+          </div>
+          <div class="text-lg text-gray-600 mb-6">Detik</div>
+
+          <div class="flex flex-wrap justify-center gap-4">
+            <button
+              v-if="!isActive"
+              @click="start"
+              class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-lg transition-colors duration-200 flex items-center gap-2"
+            >
+              <span>▶️</span> Mulai
+            </button>
+            <button
+              v-else
+              @click="pause"
+              class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-8 rounded-lg transition-colors duration-200 flex items-center gap-2"
+            >
+              <span>⏸️</span> Jeda
+            </button>
+            <button
+              @click="reset"
+              class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-8 rounded-lg transition-colors duration-200 flex items-center gap-2"
+            >
+              <span>⏹️</span> Reset
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- State Error: Jika apiResponse ada tapi data-nya kosong -->
-      <div v-else class="error-state">
-        ⚠️ Format data dari server tidak sesuai.
-      </div>
-      
-      <!-- Bungkus refresh dengan () => refresh() agar tidak error event -->
-      <button @click="() => refresh()" class="refresh-btn">🔄 Refresh Data</button>
-    </div>
+      <!-- Stats Section -->
+      <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
+        <h3 class="text-2xl font-semibold text-gray-800 mb-6 text-center">📊 Server Statistics</h3>
 
-    <!-- Bagian Eksperimen State Management -->
-    <div class="state-box">
-      <h3>🧩 Global State (Pinia Store):</h3>
-      <p>Nilai Counter: <span class="counter-value">{{ appStore.counter }}</span></p>
-      <p>Status: <span :class="{ 'even': appStore.isEven, 'odd': !appStore.isEven }">{{ appStore.isEven ? 'Genap' : 'Ganjil' }}</span></p>
-      <div class="counter-btns">
-        <button @click="appStore.decrement" class="btn btn-red">➖ Kurang</button>
-        <button @click="appStore.increment" class="btn btn-green">➕ Tambah</button>
-      </div>
-      <p class="small-text">Coba ubah angka di atas, lalu pindah ke halaman "Tentang".</p>
-    </div>
+        <div v-if="apiResponse?.data" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatusCard
+            title="Uptime"
+            :value="apiResponse.data.uptime"
+            color="blue"
+            icon="fas fa-server"
+          />
+          <StatusCard
+            title="Active Users"
+            :value="apiResponse.data.usersActive"
+            color="green"
+            icon="fas fa-users"
+          />
+          <StatusCard
+            title="Server Time"
+            :value="apiResponse.data.serverTime"
+            color="yellow"
+            icon="fas fa-clock"
+          />
+        </div>
 
-    <div class="navigation">
-      <NuxtLink to="/about">Ke Halaman Tentang ➡️</NuxtLink> <br>
-      <NuxtLink to="/custom-page" style="color: #607d8b">Coba Halaman dengan Layout Berbeda 🎨</NuxtLink>
+        <div v-else-if="apiResponse === null" class="text-center py-8">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p class="text-gray-600">⏳ Loading server data...</p>
+        </div>
+
+        <div v-else class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+          <p class="text-red-700">⚠️ Server data format error</p>
+        </div>
+
+        <div class="text-center mt-6">
+          <button
+            @click="() => refresh()"
+            class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200 inline-flex items-center gap-2"
+          >
+            <span>🔄</span> Refresh Data
+          </button>
+        </div>
+      </div>
+
+      <!-- State Management Section -->
+      <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
+        <h3 class="text-2xl font-semibold text-gray-800 mb-6 text-center">🧩 Global State (Pinia)</h3>
+
+        <div class="text-center mb-6">
+          <div class="text-4xl font-bold text-orange-500 mb-2">{{ appStore.counter }}</div>
+          <div class="text-lg">
+            Status:
+            <span :class="appStore.isEven ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
+              {{ appStore.isEven ? 'Genap' : 'Ganjil' }}
+            </span>
+          </div>
+        </div>
+
+        <div class="flex justify-center gap-4 mb-4">
+          <button
+            @click="appStore.decrement"
+            class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
+          >
+            ➖ Kurang
+          </button>
+          <button
+            @click="appStore.increment"
+            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
+          >
+            ➕ Tambah
+          </button>
+        </div>
+
+        <p class="text-sm text-gray-600 text-center">
+          Coba ubah angka di atas, lalu pindah ke halaman "Tentang"
+        </p>
+      </div>
+
+      <!-- Navigation -->
+      <div class="text-center">
+        <div class="flex flex-col sm:flex-row gap-4 justify-center mb-4">
+          <NuxtLink
+            to="/about"
+            class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 inline-flex items-center gap-2"
+          >
+            <span>📖</span> Ke Halaman Tentang
+          </NuxtLink>
+          <NuxtLink
+            to="/custom-page"
+            class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 inline-flex items-center gap-2"
+          >
+            <span>🎨</span> Halaman Custom Layout
+          </NuxtLink>
+        </div>
+        <NuxtLink
+          to="/tailwind-demo"
+          class="bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 inline-flex items-center gap-2"
+        >
+          <span>🎨</span> Tailwind CSS Demo
+        </NuxtLink>
+      </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.timer-section {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 20px;
-  border: 1px dashed #ddd;
-}
-.timer-display {
-  font-size: 3rem;
-  font-weight: bold;
-  color: #42b883;
-}
-.timer-controls button {
-  margin: 0 5px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-}
-.btn-start { background: #42b883; color: white; }
-.btn-pause { background: #fbc02d; color: white; }
-.btn-reset { background: #e0e0e0; color: #333; }
-
-.main-container {
-  font-family: sans-serif;
-  max-width: 600px;
-  margin: 50px auto;
-  text-align: center;
-  padding: 20px;
-  border-radius: 12px;
-  background: #f9f9f9;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-.info-box {
-  text-align: left;
-  background: #e3f2fd;
-  padding: 15px;
-  border-radius: 8px;
-}
-.navigation {
-  margin-top: 20px;
-}
-a {
-  color: #1976d2;
-  text-decoration: none;
-  font-weight: bold;
-}
-a:hover {
-  text-decoration: underline;
-}
-.refresh-btn {
-  margin-top: 15px;
-  padding: 8px 16px;
-  background: #42b883;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-}
-.refresh-btn:hover {
-  background: #33a06f;
-}
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-}
-.loading-state {
-  color: #666;
-  font-style: italic;
-  padding: 10px 0;
-}
-.error-state {
-  color: #d32f2f;
-  background: #ffebee;
-  padding: 10px;
-  border-radius: 4px;
-}
-
-/* Style tambahan untuk State Mgmt */
-.state-box {
-  margin-top: 20px;
-  padding: 15px;
-  background: #fff3e0;
-  border-radius: 8px;
-  border: 1px dashed #ff9800;
-}
-.counter-value {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #ff9800;
-}
-.counter-btns {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin: 10px 0;
-}
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  color: white;
-}
-.btn-red { background: #e53935; }
-.btn-green { background: #43a047; }
-.small-text {
-  font-size: 0.8rem;
-  color: #666;
-}
-</style>
