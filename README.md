@@ -153,6 +153,8 @@ File test yang tersedia:
 | `app/composables/useTimeFormatter.test.ts` | Fungsi format waktu dan tanggal |
 | `app/components/StatusCard.test.ts` | Rendering komponen StatusCard |
 | `app/components/timekeeper/TimelineView.test.ts` | Rendering komponen TimelineView |
+| `app/stores/app.test.ts` | State management store |
+| `app/pages/index.integration.test.ts` | Integration test halaman utama (komponen + store) |
 
 Mode UI interaktif:
 

@@ -483,6 +483,8 @@ TypeScript dikonfigurasi melalui referensi ke file yang di-generate oleh Nuxt (`
 | `app/composables/useTimeFormatter.test.ts` | `useTimeFormatter.ts` | `formatTime()`: format jam:menit; `formatDate()`: format tanggal Indonesia; `formatDuration()`: format durasi jam/menit; penanganan input null/invalid |
 | `app/components/StatusCard.test.ts` | `StatusCard.vue` | Rendering props (title, value, color); class CSS dinamis berdasarkan prop color |
 | `app/components/timekeeper/TimelineView.test.ts` | `TimelineView.vue` | Rendering komponen TimelineView |
+| `app/stores/app.test.ts` | `timekeeper.ts` | State management store |
+| `app/pages/index.integration.test.ts` | `index.vue` | Integration test: interaksi komponen dengan store |
 
 Perintah:
 
