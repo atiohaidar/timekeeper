@@ -196,17 +196,17 @@ function cancelCancelAction() {
 
 // Computed messages for modals
 const startConfirmationMessage = computed(() => {
-  let startActionText = 'memulai sekarang'
+  let actionText = 'memulai sekarang'
   if (pendingStartMode.value === 'scheduled') {
-    startActionText = 'memulai sesuai jadwal'
+    actionText = 'memulai sesuai jadwal'
   } else if (pendingStartMode.value === 'resume') {
-    startActionText = 'melanjutkan kembali'
+    actionText = 'melanjutkan kembali'
   }
 
   if (runningAgenda.value && runningAgenda.value.id !== agenda.value?.id) {
-    return `Agenda "${runningAgenda.value?.title}" sedang berjalan. Apakah kamu yakin ingin menghentikannya dan ${startActionText} agenda "${agenda.value?.title}"?`
+    return `Agenda "${runningAgenda.value?.title}" sedang berjalan. Apakah kamu yakin ingin menghentikannya dan ${actionText} agenda "${agenda.value?.title}"?`
   }
-  return `Apakah kamu yakin ingin ${startActionText} agenda "${agenda.value?.title}"?`
+  return `Apakah kamu yakin ingin ${actionText} agenda "${agenda.value?.title}"?`
 })
 
 const stopConfirmationMessage = computed(() => {
