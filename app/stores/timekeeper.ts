@@ -440,7 +440,7 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         agenda.actualStartTime = effectiveStart
         agenda.actualEndTime = null
         elapsedSeconds.value = Math.max(0, preserveElapsedSeconds)
-        agenda.actualDurationSeconds = preserveElapsedSeconds > 0 ? preserveElapsedSeconds : undefined
+        agenda.actualDurationSeconds = Math.max(0, preserveElapsedSeconds)
 
         if (timerInterval) clearInterval(timerInterval)
         // We rely on the central clock loop to update elapsedSeconds now
