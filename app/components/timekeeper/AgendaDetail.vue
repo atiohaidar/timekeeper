@@ -44,7 +44,7 @@ const estimatedStartTime = computed(() => {
 // Emits
 const emit = defineEmits<{
   start: [id: string]
-  startOnTime: [id: string]
+  'start-on-time': [id: string]
   resume: [id: string]
   stop: [id: string]
   cancel: [id: string]
@@ -138,7 +138,7 @@ function handleResume() {
 function confirmStart() {
   if (pendingStartId.value) {
     if (pendingStartMode.value === 'scheduled') {
-      emit('startOnTime', pendingStartId.value)
+      emit('start-on-time', pendingStartId.value)
     } else if (pendingStartMode.value === 'resume') {
       emit('resume', pendingStartId.value)
     } else {
