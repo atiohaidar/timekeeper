@@ -1,0 +1,281 @@
+/* =============================================================================
+   CSS STYLING - IEEE CONFERENCE 2-COLUMN PAPER (SIMULASI PDF PRESISI)
+   =============================================================================
+   CSS ini dirancang khusus untuk mereplikasi IEEE Conference Paper resmi
+   berdasarkan gambar contoh yang diberikan.
+*/
+
+body {
+    background-color: #525659 !important; /* Latar belakang abu-abu khas PDF Reader */
+    margin: 0 !important;
+    padding: 30px 0 !important;
+}
+
+.ieee-page, 
+.ieee-page * {
+    font-family: "Times New Roman", Times, serif !important;
+}
+
+/* Link/Tautan */
+.ieee-page a {
+    color: #000000 !important;
+    text-decoration: none !important;
+}
+.ieee-page a:hover {
+    text-decoration: underline !important;
+}
+
+/* Simulasi Halaman Kertas Fisik IEEE */
+.ieee-page {
+    background: #ffffff !important;
+    width: 8.5in;
+    min-height: 11in;
+    margin: 0 auto !important;
+    padding: 0.75in 0.625in 1.0in 0.625in !important; /* Margin IEEE: Top 0.75", Bottom 1.0", Left/Right 0.625" */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    box-sizing: border-box;
+    color: #000000 !important;
+    font-size: 10pt;
+    line-height: 1.12;
+}
+
+/* Judul Utama (Conference Paper Title) */
+.ieee-title {
+    font-size: 24pt;
+    font-weight: normal;
+    text-align: center;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    line-height: 1.15;
+}
+
+.ieee-subtitle {
+    text-align: center;
+    font-size: 10pt;
+    font-style: italic;
+    margin-bottom: 24px;
+    color: #333333;
+}
+
+/* Bagian Penulis (Grid Layout 3 Kolom) */
+.ieee-authors-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    text-align: center;
+    margin-bottom: 24px;
+    font-size: 10pt;
+}
+
+.ieee-author {
+    margin-bottom: 12px;
+}
+
+.ieee-author-name {
+    font-size: 11pt;
+    font-weight: normal;
+}
+
+.ieee-author-aff {
+    font-style: italic;
+    font-size: 10pt;
+    line-height: 1.2;
+}
+
+/* Layout 2 Kolom untuk Konten Utama (Dimulai tepat di bawah Penulis) */
+.ieee-columns {
+    column-count: 2;
+    column-gap: 0.25in;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+}
+
+/* Bagian Abstrak (Berada di Kolom Pertama Kiri, Tebal, 9pt, TANPA indentasi) */
+.ieee-abstract-section {
+    font-size: 9pt;
+    text-align: justify;
+    line-height: 1.25;
+    margin-bottom: 15px;
+    text-indent: 0 !important; /* Abstrak tidak boleh menjorok */
+}
+
+.ieee-abstract-title {
+    font-weight: bold;
+    font-style: italic;
+}
+
+.ieee-abstract-text {
+    font-weight: bold;
+}
+
+.ieee-keywords-title {
+    font-weight: bold;
+    font-style: italic;
+}
+
+.ieee-keywords-text {
+    font-weight: bold;
+}
+
+/* Aturan Indentasi Paragraf IEEE (SEMUA paragraf di bawah bab wajib menjorok rata 1.5em) */
+.ieee-columns p {
+    text-indent: 1.5em !important; /* Sesuai standar resmi IEEE, paragraf pertama maupun kedua dst memiliki tab masuk yang sama */
+    margin-top: 0 !important;
+    margin-bottom: 0 !important; /* Rapat vertikal */
+    text-align: justify;
+}
+
+/* Elemen khusus yang dikecualikan dari tab masuk (no-indent) */
+.ieee-columns .no-indent {
+    text-indent: 0 !important;
+}
+
+/* Heading 1 Romawi (I. INTRODUCTION) - Centered, All Caps, Bold */
+.ieee-columns h2 {
+    font-variant: small-caps;
+    text-align: center;
+    font-size: 10pt;
+    font-weight: normal;
+    margin-top: 15px !important;
+    margin-bottom: 6px !important;
+    border: none !important;
+    padding: 0;
+    line-height: 1.2;
+    color: #000000 !important;
+}
+
+/* Heading 2 Abjad (A. Maintaining...) - Italic, Left Aligned */
+.ieee-columns h3 {
+    font-size: 10pt;
+    font-style: italic;
+    font-weight: normal;
+    text-align: left;
+    text-indent: 0 !important; /* Sub-bab tetap rapat kiri */
+    margin-top: 10px !important;
+    margin-bottom: 4px !important;
+    line-height: 1.2;
+    color: #000000 !important;
+}
+
+/* List Poin (Bullet List) */
+.ieee-columns ul, .ieee-columns ol {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-left: 15px;
+}
+.ieee-columns li {
+    margin-bottom: 0 !important;
+    text-indent: 0;
+    font-size: 9.5pt;
+}
+
+/* Tabel Standar IEEE */
+.ieee-table-container {
+    text-align: center;
+    margin: 12px 0;
+}
+.ieee-table-title {
+    font-size: 8pt;
+    font-variant: small-caps;
+    text-align: center;
+    text-indent: 0;
+    margin-bottom: 4px;
+}
+.ieee-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt;
+    margin: 0 auto;
+    border: none !important;
+}
+.ieee-table th {
+    text-align: center;
+    padding: 4px 2px;
+    border-top: 1.5px solid #000 !important;
+    border-bottom: 1px solid #000 !important;
+    font-weight: bold;
+}
+.ieee-table td {
+    padding: 4px 2px;
+    border: none !important;
+}
+.ieee-table tr.last-row td {
+    border-bottom: 1.5px solid #000 !important;
+}
+
+/* Gambar Standar IEEE */
+.ieee-figure-container {
+    text-align: center;
+    margin: 12px 0;
+}
+.ieee-figure-placeholder {
+    width: 100%;
+    height: 100px;
+    background-color: #eee;
+    border: 0.5px solid #ccc;
+    text-align: center;
+    line-height: 100px;
+    font-size: 8pt;
+    color: #555;
+    font-style: italic;
+}
+.ieee-figure-caption {
+    font-size: 8pt;
+    text-align: justify;
+    text-indent: 0;
+    margin-top: 5px;
+    line-height: 1.1;
+}
+
+/* Heading References */
+.ieee-columns h2.references-heading {
+    margin-top: 18px !important;
+    font-variant: small-caps;
+    text-align: center;
+}
+
+/* Spacing Daftar Pustaka */
+.references-list {
+    font-size: 8pt;
+    line-height: 1.2;
+    margin-top: 8px;
+}
+.references-list p {
+    text-indent: -1.5em !important;
+    padding-left: 1.5em !important;
+    margin-bottom: 4px !important;
+}
+
+/* Footnote Kiri Bawah */
+.ieee-footnote {
+    border-top: 0.5px solid #000;
+    padding-top: 4px;
+    margin-top: 20px;
+    font-size: 8pt;
+    width: 48%; /* Menempati kolom kiri saja */
+}
+
+/* Penyesuaian Media Cetak (Print & PDF Export) */
+@media print {
+    body {
+        background-color: #ffffff !important;
+        background: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .ieee-page {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+    }
+    @page {
+        size: letter;
+        margin: 0.75in !important;
+    }
+}
