@@ -418,7 +418,12 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         selectedAgendaId.value = id
     }
 
-    function startAgenda(id: string) {
+    function startAgenda(
+        id: string,
+        startAt?: Date,
+        initialElapsedSeconds: number = 0,
+        changeLogDescription?: string
+    ) {
         snapshot()
         const agenda = agendas.value.find(a => a.id === id)
         if (!agenda) return
@@ -428,15 +433,47 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
             stopAgenda(current.id, false)
         }
 
+        const now = new Date(currentTime.value)
+        const effectiveStart = startAt ? new Date(startAt) : now
+
         agenda.status = 'running'
-        agenda.actualStartTime = new Date()
-        elapsedSeconds.value = 0
+        agenda.actualStartTime = effectiveStart
+        agenda.actualEndTime = null
+        elapsedSeconds.value = Math.max(0, initialElapsedSeconds)
+        agenda.actualDurationSeconds = Math.max(0, initialElapsedSeconds)
 
         if (timerInterval) clearInterval(timerInterval)
         // We rely on the central clock loop to update elapsedSeconds now
         // But we still need to clear the old interval if it exists from older logic
 
-        addChangeLog('start', `Dimulai pada ${formatTime(new Date())}`, agenda)
+        addChangeLog('start', changeLogDescription || `Dimulai pada ${formatTime(effectiveStart)}`, agenda)
+    }
+
+    function startAgendaOnTime(id: string) {
+        const agenda = agendas.value.find(a => a.id === id)
+        if (!agenda) return
+
+        const now = new Date(currentTime.value)
+        const plannedStart = new Date(agenda.plannedStartTime)
+        const effectiveStart = plannedStart.getTime() <= now.getTime() ? plannedStart : now
+
+        startAgenda(id, effectiveStart)
+    }
+
+    function resumeAgenda(id: string) {
+        const agenda = agendas.value.find(a => a.id === id)
+        if (!agenda || agenda.status !== 'done') return
+
+        const now = new Date(currentTime.value)
+        const previousElapsedSeconds = Math.max(0, agenda.actualDurationSeconds ?? 0)
+        const resumedStart = new Date(now.getTime() - previousElapsedSeconds * 1000)
+
+        startAgenda(
+            id,
+            resumedStart,
+            previousElapsedSeconds,
+            `Dilanjutkan pada ${formatTime(now)}`
+        )
     }
 
     function stopAgenda(id: string, markDone: boolean = true) {
@@ -449,12 +486,13 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
             timerInterval = null
         }
 
-        agenda.actualEndTime = new Date()
+        const endedAt = new Date(currentTime.value)
+        agenda.actualEndTime = endedAt
         agenda.actualDurationSeconds = elapsedSeconds.value
 
         if (markDone) {
             agenda.status = 'done'
-            addChangeLog('done', `Selesai pada ${formatTime(new Date())}`, agenda)
+            addChangeLog('done', `Selesai pada ${formatTime(endedAt)}`, agenda)
 
             const sorted = sortedAgendas.value
             const currentIndex = sorted.findIndex(a => a.id === id)
@@ -682,6 +720,8 @@ export const useTimekeeperStore = defineStore('timekeeper', () => {
         getEstimatedStartTime,
         selectAgenda,
         startAgenda,
+        startAgendaOnTime,
+        resumeAgenda,
         stopAgenda,
         cancelAgenda,
         adjustTime,

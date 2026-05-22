@@ -37,6 +37,8 @@ const {
   getEstimatedStartTime,
   selectAgenda,
   startAgenda,
+  startAgendaOnTime,
+  resumeAgenda,
   stopAgenda,
   cancelAgenda,
   adjustTime,
@@ -188,6 +190,22 @@ function handleStartAgenda(id: string) {
   const agenda = agendas.value.find(a => a.id === id)
   if (agenda) {
     toast.success(`Agenda "${agenda.title}" berhasil dimulai! 🎉`)
+  }
+}
+
+function handleStartAgendaOnTime(id: string) {
+  startAgendaOnTime(id)
+  const agenda = agendas.value.find(a => a.id === id)
+  if (agenda) {
+    toast.success(`Agenda "${agenda.title}" dimulai sesuai jadwal 🕐`)
+  }
+}
+
+function handleResumeAgenda(id: string) {
+  resumeAgenda(id)
+  const agenda = agendas.value.find(a => a.id === id)
+  if (agenda) {
+    toast.info(`Agenda "${agenda.title}" dilanjutkan kembali 🔁`)
   }
 }
 
@@ -498,6 +516,8 @@ useHead({
 
           <TimekeeperAgendaDetail
             @start="handleStartAgenda"
+            @start-on-time="handleStartAgendaOnTime"
+            @resume="handleResumeAgenda"
             @stop="handleStopAgenda"
             @cancel="handleCancelAgenda"
             @adjust="handleAdjustTime"

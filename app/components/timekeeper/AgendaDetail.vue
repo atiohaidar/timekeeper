@@ -44,6 +44,8 @@ const estimatedStartTime = computed(() => {
 // Emits
 const emit = defineEmits<{
   start: [id: string]
+  'start-on-time': [id: string]
+  resume: [id: string]
   stop: [id: string]
   cancel: [id: string]
   adjust: [id: string, minutes: number]
@@ -115,26 +117,43 @@ function handleNotesInput() {
 // ===== START CONFIRMATION =====
 const showStartConfirmation = ref(false)
 const pendingStartId = ref<string | null>(null)
+const pendingStartMode = ref<'now' | 'scheduled' | 'resume'>('now')
 
-function handleStart() {
+function handleStart(mode: 'now' | 'scheduled' = 'now') {
   if (!agenda.value) return
   
   // Show confirmation modal for starting
   showStartConfirmation.value = true
   pendingStartId.value = agenda.value.id
+  pendingStartMode.value = mode
+}
+
+function handleResume() {
+  if (!agenda.value) return
+  showStartConfirmation.value = true
+  pendingStartId.value = agenda.value.id
+  pendingStartMode.value = 'resume'
 }
 
 function confirmStart() {
   if (pendingStartId.value) {
-    emit('start', pendingStartId.value)
+    if (pendingStartMode.value === 'scheduled') {
+      emit('start-on-time', pendingStartId.value)
+    } else if (pendingStartMode.value === 'resume') {
+      emit('resume', pendingStartId.value)
+    } else {
+      emit('start', pendingStartId.value)
+    }
   }
   showStartConfirmation.value = false
   pendingStartId.value = null
+  pendingStartMode.value = 'now'
 }
 
 function cancelStart() {
   showStartConfirmation.value = false
   pendingStartId.value = null
+  pendingStartMode.value = 'now'
 }
 
 // ===== STOP/FINISH CONFIRMATION =====
@@ -177,10 +196,17 @@ function cancelCancelAction() {
 
 // Computed messages for modals
 const startConfirmationMessage = computed(() => {
-  if (runningAgenda.value && runningAgenda.value.id !== agenda.value?.id) {
-    return `Agenda "${runningAgenda.value?.title}" sedang berjalan. Apakah kamu yakin ingin menghentikannya dan memulai agenda "${agenda.value?.title}"?`
+  let actionText = 'memulai sekarang'
+  if (pendingStartMode.value === 'scheduled') {
+    actionText = 'memulai sesuai jadwal'
+  } else if (pendingStartMode.value === 'resume') {
+    actionText = 'melanjutkan kembali'
   }
-  return `Apakah kamu yakin ingin memulai agenda "${agenda.value?.title}" sekarang?`
+
+  if (runningAgenda.value && runningAgenda.value.id !== agenda.value?.id) {
+    return `Agenda "${runningAgenda.value?.title}" sedang berjalan. Apakah kamu yakin ingin menghentikannya dan ${actionText} agenda "${agenda.value?.title}"?`
+  }
+  return `Apakah kamu yakin ingin ${actionText} agenda "${agenda.value?.title}"?`
 })
 
 const stopConfirmationMessage = computed(() => {
@@ -382,15 +408,21 @@ function applyCustomAdjust() {
 
 
       <!-- Primary Control Zone -->
-      <div v-if="agenda.status === 'waiting' || agenda.status === 'running'" class="flex justify-center mb-8">
-        <!-- Start button -->
-        <button
-          v-if="agenda.status === 'waiting'"
-          class="btn-sketchy-large btn-sketchy-primary"
-          @click="handleStart"
-        >
-          ▶️ MULAI ACARA
-        </button>
+      <div v-if="agenda.status === 'waiting' || agenda.status === 'running' || agenda.status === 'done'" class="flex justify-center mb-8">
+        <div v-if="agenda.status === 'waiting'" class="flex flex-col md:flex-row gap-3">
+          <button
+            class="btn-sketchy-large btn-sketchy-primary"
+            @click="handleStart('now')"
+          >
+            ▶️ MULAI SEKARANG
+          </button>
+          <button
+            class="btn-sketchy-large"
+            @click="handleStart('scheduled')"
+          >
+            🕐 MULAI SESUAI JADWAL
+          </button>
+        </div>
 
         <!-- Stop button -->
         <button
@@ -399,6 +431,14 @@ function applyCustomAdjust() {
           @click="handleStop"
         >
           ✅ SELESAI
+        </button>
+
+        <button
+          v-if="agenda.status === 'done'"
+          class="btn-sketchy-large btn-sketchy-primary"
+          @click="handleResume"
+        >
+          🔁 LANJUTKAN ACARA
         </button>
       </div>
 
